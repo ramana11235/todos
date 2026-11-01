@@ -8,16 +8,17 @@ import {ApiError, Client} from '../src/client/client.js';
 import {apiHeaders, apiUrl, settings} from '../src/config.js';
 
 describe('a laptop that uses the hosted Instance', () => {
-	const saved = {home: process.env.TODOS_HOME, url: process.env.TODOS_API_URL};
+	const saved = {home: process.env.TODOS_HOME, url: process.env.TODOS_API_URL, port: process.env.TODOS_PORT};
 	const token = {url: 'https://todos.example.dev', clientId: 'id.access', clientSecret: 'cfast_secret'};
 
 	beforeEach(() => {
 		process.env.TODOS_HOME = mkdtempSync(join(tmpdir(), 'todos-'));
 		delete process.env.TODOS_API_URL;
+		delete process.env.TODOS_PORT;
 	});
 
 	afterEach(() => {
-		for (const [key, value] of [['TODOS_HOME', saved.home], ['TODOS_API_URL', saved.url]] as const) {
+		for (const [key, value] of [['TODOS_HOME', saved.home], ['TODOS_API_URL', saved.url], ['TODOS_PORT', saved.port]] as const) {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
