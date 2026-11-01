@@ -42,7 +42,7 @@ import {useIsMobile} from '@/hooks/use-mobile';
 import {ApiError, Client, type Seen} from '../../src/client/client';
 import {belongingOrder, belongsKey, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
-import {dayOf, groupedByThread, listNames, listOf, lists, type List, type Place, type Task} from '../../src/core/task';
+import {dayOf, groupedByThread, listNames, listOf, lists, whenAfter, type List, type Place, type Task} from '../../src/core/task';
 import type {TaskEdit} from '../../src/core/tasks';
 import type {MyEdit} from '../../src/core/threads';
 import {isActive, shownMove, type Deadline, type Thread} from '../../src/core/thread';
@@ -121,7 +121,7 @@ function withHeadings(tasks: Task[], label: (task: Task) => string): Row[] {
 // show it at once. Opening a Task again keeps when it ended, so it keeps its
 // place in the Logbook until the view changes.
 function applied(task: Task, patch: TaskEdit): Task {
-	const next = {...task, ...patch} as Task;
+	const next = {...task, ...patch, when: whenAfter(task, patch)} as Task;
 	if (patch.ended !== undefined && patch.ended !== 'not_ended') next.endedAt = new Date().toISOString();
 	return next;
 }
@@ -132,9 +132,11 @@ const undoToast = (message: string, onUndo: () => void) =>
 	toast(message, {duration: 10_000, action: {label: 'Undo', onClick: onUndo}});
 
 // The change that puts back what `patch` replaces. The API keeps no history,
-// so undoing sends this.
+// so undoing sends this. Linking can also move the Task out of the Inbox, so
+// its list is put back too.
 function reverseOf(task: Task, patch: TaskEdit): TaskEdit {
-	return Object.fromEntries(Object.keys(patch).map(key => [key, task[key as keyof Task]])) as TaskEdit;
+	const keys = new Set([...Object.keys(patch), ...(applied(task, patch).when === task.when ? [] : ['when'])]);
+	return Object.fromEntries([...keys].map(key => [key, task[key as keyof Task]])) as TaskEdit;
 }
 
 const byPosition = (a: {position: number}, b: {position: number}) => a.position - b.position;

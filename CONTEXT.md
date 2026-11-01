@@ -80,7 +80,7 @@ A single action, which is open until it is **Done** or **Dropped**. Like a **Thr
 _Avoid_: Todo, item, action
 
 **Inbox**:
-The place where captured **Tasks** wait until I move them somewhere.
+The place where captured **Tasks** wait until I move them somewhere. Linking a **Task** in the **Inbox** to a **Thread** sorts it, so it moves to **Anytime**, wherever it is linked; unlinking it leaves it where it is, and a **Task** in another list keeps its list when linked.
 
 **Today**:
 The **Tasks** that must be done today. A **Task** goes here only if it really needs doing that day, so nothing drifts from day to day.
@@ -208,7 +208,7 @@ _Avoid_: Copy
 ### Tasks
 
 - An open **Task** is in exactly one of **Inbox**, **Today**, **Anytime**, **Upcoming** or **Someday**, and every place that shows the lists shows them in that order
-- A **Task** can be linked to at most one **Thread**, **Project** or **Area**, and each of them can have many **Tasks** linked to it. Being linked changes nothing about how it behaves; it appears in the same lists, grouped under the **Project** or **Area** it belongs to and then under its **Thread**'s title, except in **Upcoming**, which groups under the day and then the **Thread**'s title
+- A **Task** can be linked to at most one **Thread**, **Project** or **Area**, and each of them can have many **Tasks** linked to it. Being linked changes nothing else about how it behaves, beyond moving a **Task** out of the **Inbox** as the **Inbox** says; it appears in the same lists, grouped under the **Project** or **Area** it belongs to and then under its **Thread**'s title, except in **Upcoming**, which groups under the day and then the **Thread**'s title
 - A **Thread** has exactly one **Next step**, which never appears among the **Tasks** to pick from; if it should, a **Task** is added to the **Thread** by hand
 - A **Task** in any list can be turned into a new **Thread**: the **Thread** takes its title, **Notes**, **Deadline** and **When** (a **Someday** **Task** gives a **Someday** **Thread**, a **Task** in **Upcoming** a **Thread** that comes back on its **Date**, any other an **Active** one, as a **Task** in **Today** is), its checklist steps become **Tasks** linked to the **Thread**, and the **Task** itself is gone, the one way a **Task** leaves without being **Done** or **Dropped**, because everything in it now lives in the **Thread**
 - Full work with **Tasks**, such as setting a **Date** or **Deadline**, moving between lists, dropping, linking to a **Thread** and turning one into a **Thread**, happens in the web app. The task panel in the terminal stays light, so the terminal never gets a second **Home**

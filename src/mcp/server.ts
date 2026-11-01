@@ -149,7 +149,7 @@ const editTaskInput = {
 	task: z.string().describe('The id of the Task, from find_tasks.'),
 	title: z.string().optional(),
 	when: taskWhen.describe('The list it goes in, or on_day for the day it moves into Today.'),
-	thread: z.string().nullable().optional().describe('The id of its Thread, or null for none. Linking it to a Thread takes it out of its project or area.'),
+	thread: z.string().nullable().optional().describe('The id of its Thread, or null for none. Linking it to a Thread takes it out of its project or area, and moves it from the Inbox to Anytime.'),
 	belongs_to: belongsTo.describe('The project or area it belongs to, which takes it off its Thread.'),
 	notes: z.string().optional().describe('The whole notes, replacing the old ones.'),
 	deadline,

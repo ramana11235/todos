@@ -222,6 +222,20 @@ describe('ticking off, renaming and reordering', () => {
 		for (const day of ['next tuesday', '2026-02-30', '2026-1-5']) await expect(tasks.edit(task.id, {when: {kind: 'on_day', day}})).rejects.toThrow(ThreadError);
 	});
 
+	it('moves a Task out of the Inbox to Anytime when it is linked to a Thread', async () => {
+		const house = await threads.create({title: 'Move house'});
+		const inbox = await tasks.add({title: 'Call the landlord'});
+		expect(await tasks.edit(inbox.id, {threadId: house.id})).toMatchObject({when: {kind: 'anytime'}, threadId: house.id});
+		expect((await tasks.get(inbox.id)).when).toEqual({kind: 'anytime'});
+		// Unlinking leaves it where it is.
+		expect((await tasks.edit(inbox.id, {threadId: null})).when).toEqual({kind: 'anytime'});
+		// A Task in another list keeps it, and a list given with the link wins.
+		const someday = await tasks.add({title: 'Paint the hall', when: {kind: 'someday'}});
+		expect((await tasks.edit(someday.id, {threadId: house.id})).when).toEqual({kind: 'someday'});
+		const kept = await tasks.add({title: 'Ask Jo'});
+		expect((await tasks.edit(kept.id, {threadId: house.id, when: {kind: 'inbox'}})).when).toEqual({kind: 'inbox'});
+	});
+
 	it('moves a Task only within its group', async () => {
 		const house = await threads.create({title: 'Move house'});
 		const card = await tasks.add({title: 'Buy a card'});

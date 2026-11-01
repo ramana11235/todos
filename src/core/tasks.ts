@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import type {Belongs} from './project.js';
 import {requireBelongs} from './projects.js';
-import {dayOf, isDay, listOf, places, type Place, type Step, type Task, type TaskWhen} from './task.js';
+import {dayOf, isDay, listOf, places, whenAfter, type Place, type Step, type Task, type TaskWhen} from './task.js';
 import type {Deadline, Ended, Thread} from './thread.js';
 import {changedFields, refuseOldFields, requireDeadline, requireEnded, ThreadError, type Threads} from './threads.js';
 
@@ -125,6 +125,7 @@ export class Tasks {
 		if (edit.threadId !== undefined) {
 			if (edit.threadId && !(await this.storage.getThread(edit.threadId))) throw new ThreadError('not_found', `No Thread ${edit.threadId}`);
 			next.threadId = edit.threadId;
+			next.when = whenAfter(next, edit);
 			if (edit.threadId) next.belongs = {kind: 'none'};
 		}
 		if (edit.belongs !== undefined) {
