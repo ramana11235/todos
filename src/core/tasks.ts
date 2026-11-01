@@ -100,6 +100,7 @@ export class Tasks {
 			throw new ThreadError('not_found', `No Thread ${threadId}`);
 		}
 		refuseTwoLinks(task.threadId, task.belongs);
+		task.when = whenAfter(task, {});
 		if (index !== undefined) task.position = await this.positionAt(task, index);
 		await this.storage.saveTask(task);
 		return task;
@@ -125,7 +126,6 @@ export class Tasks {
 		if (edit.threadId !== undefined) {
 			if (edit.threadId && !(await this.storage.getThread(edit.threadId))) throw new ThreadError('not_found', `No Thread ${edit.threadId}`);
 			next.threadId = edit.threadId;
-			next.when = whenAfter(next, edit);
 			if (edit.threadId) next.belongs = {kind: 'none'};
 		}
 		if (edit.belongs !== undefined) {
@@ -135,6 +135,7 @@ export class Tasks {
 				next.threadId = null;
 			}
 		}
+		next.when = whenAfter(next, {});
 		if (edit.index !== undefined) next.position = await this.positionAt(next, edit.index);
 		await this.storage.updateTask(id, changedFields(task, next));
 		return next;

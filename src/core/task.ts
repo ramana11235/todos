@@ -53,12 +53,15 @@ export function listOf(task: Task, today: string): List {
 	return task.when.kind;
 }
 
-// Where a Task is put by a change. Linking a Task in the Inbox to a Thread
-// sorts it, so it moves to Anytime unless the change gives it a list.
-// Unlinking it, or linking a Task in another list, leaves it where it is.
-export function whenAfter(task: Task, change: {when?: TaskWhen; threadId?: string | null}): TaskWhen {
-	if (change.when !== undefined) return change.when;
-	return change.threadId && task.when.kind === 'inbox' ? {kind: 'anytime'} : task.when;
+// Where a Task is put by a change. A Task that belongs to a Thread, a project
+// or an area has been sorted, so it never sits in the Inbox and goes to
+// Anytime instead. Unlinking it, or linking a Task in another list, leaves it
+// where it is.
+export function whenAfter(task: Task, change: {when?: TaskWhen; threadId?: string | null; belongs?: Belongs}): TaskWhen {
+	const when = change.when ?? task.when;
+	const threadId = change.threadId !== undefined ? change.threadId : task.threadId;
+	const belongs = change.belongs ?? task.belongs;
+	return when.kind === 'inbox' && (threadId || belongs.kind !== 'none') ? {kind: 'anytime'} : when;
 }
 
 export const dayOf = (date: Date): string =>

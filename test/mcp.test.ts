@@ -64,11 +64,11 @@ describe('the MCP server', () => {
 		expect(mcp.getInstructions()).toContain('get_thoughts only when the user asks');
 	});
 
-	it('adds Tasks to its own Thread, in the Inbox unless told another list', async () => {
+	it('adds Tasks to its own Thread, in Anytime unless told another list', async () => {
 		expect((await call('add_task', {title: 'Review the PR'})).body).toMatchObject({added: true});
 		await call('add_task', {title: 'Reply to CI', when: {kind: 'today'}});
 		expect((await client.tasks()).map(t => [t.title, t.when.kind, t.threadId])).toEqual([
-			['Review the PR', 'inbox', mine],
+			['Review the PR', 'anytime', mine],
 			['Reply to CI', 'today', mine],
 		]);
 		expect(mcp.getInstructions()).toContain('action verb');
@@ -318,13 +318,13 @@ describe('the MCP server', () => {
 		const a = (await call('add_task', {title: 'A', when: {kind: 'today'}})).body.id;
 		await call('add_task', {title: 'B', when: {kind: 'today'}});
 		await call('add_task', {title: 'First', when: {kind: 'today'}, position: 0});
-		await call('add_task', {title: 'In the Inbox'});
+		await call('add_task', {title: 'In Anytime'});
 		const titles = async () => (await call('find_tasks')).body.map((t: any) => t.title);
-		expect(await titles()).toEqual(['In the Inbox', 'First', 'A', 'B']);
+		expect(await titles()).toEqual(['First', 'A', 'B', 'In Anytime']);
 		await call('edit_task', {task: a, position: 2});
-		expect(await titles()).toEqual(['In the Inbox', 'First', 'B', 'A']);
+		expect(await titles()).toEqual(['First', 'B', 'A', 'In Anytime']);
 		await call('batch', {changes: [{tool: 'edit_task', task: a, position: 0}, {tool: 'create_thread', title: 'Plan the move', position: 0}]});
-		expect(await titles()).toEqual(['In the Inbox', 'A', 'First', 'B']);
+		expect(await titles()).toEqual(['A', 'First', 'B', 'In Anytime']);
 		expect((await call('find_threads')).body.filter((t: any) => t.parent === 'Build the MCP server').map((t: any) => t.title)).toEqual(['Plan the move']);
 		const second = (await call('create_thread', {title: 'Plan the party', position: 0})).body.id;
 		expect((await call('find_threads')).body.filter((t: any) => t.parent === 'Build the MCP server').map((t: any) => t.id)[0]).toBe(second);
@@ -348,7 +348,7 @@ describe('the MCP server', () => {
 		const checklist = [{id: 'a', title: 'Open Home', done: true}];
 		await client.editTask(id, {checklist, deadline: {kind: 'by_day', day: '2099-01-01'}});
 		expect((await call('get_task', {task: id})).body).toEqual({
-			id, title: 'Check the panel', list: 'inbox', when: {kind: 'inbox'}, deadline: {kind: 'by_day', day: '2099-01-01'}, ended: 'not_ended',
+			id, title: 'Check the panel', list: 'anytime', when: {kind: 'anytime'}, deadline: {kind: 'by_day', day: '2099-01-01'}, ended: 'not_ended',
 			thread: {id: mine, title: 'Build the MCP server'}, belongsTo: {kind: 'none'}, notes: '1. Open Home', checklist,
 		});
 		expect((await call('get_task', {task: 'missing'})).isError).toBe(true);

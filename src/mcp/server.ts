@@ -36,7 +36,7 @@ When two Threads turn out to be the same outcome, move one's children and open T
 
 If your directory has changes that are not yours, ask the user before touching them. You never read another Session's conversation; you learn about its Thread from its notes, summary and next step.
 
-When the user asks you to add a Task, use add_task. A Task is a single action. Start it with an action verb and keep it very short, such as "Call the landlord". It goes on your own Thread and in the Inbox unless the user says otherwise. The user acts on Tasks and does not open your files, so a Task you make for them, such as a check only they can do, carries everything the user needs to do it, step by step, in its notes.
+When the user asks you to add a Task, use add_task. A Task is a single action. Start it with an action verb and keep it very short, such as "Call the landlord". It goes on your own Thread, which puts it in Anytime, unless the user says otherwise. The user acts on Tasks and does not open your files, so a Task you make for them, such as a check only they can do, carries everything the user needs to do it, step by step, in its notes.
 
 A project is an outcome made of Threads and Tasks, such as Build todos, and an area is a part of the user's life that is never finished, such as Health. A Thread at the top of its tree, or a Task with no Thread, can belong to one of them with belongs_to; the Threads under it belong where it does, and a Task on a Thread belongs where its Thread does. find_projects lists them with their ids. Create, change, end or put things in them only when the user tells you to.
 
@@ -136,7 +136,7 @@ const checklist = z
 
 const addTaskInput = {
 	title: z.string().describe('A single action, starting with an action verb and very short, such as "Call the landlord".'),
-	when: taskWhen.describe('The list it goes in, or on_day for the day it moves into Today. Leave it out for the Inbox. Only set it when the user says.'),
+	when: taskWhen.describe('The list it goes in, or on_day for the day it moves into Today. Leave it out for the Inbox, or for Anytime when it has a Thread, project or area, since a Task that belongs somewhere is never in the Inbox. Only set it when the user says.'),
 	thread: z.string().nullable().optional().describe('The id of the Thread, or null for no Thread. Leave it out for your own.'),
 	belongs_to: belongsTo.describe('The project or area it belongs to, for a Task with thread null.'),
 	notes: z.string().optional().describe('Everything the user needs to do it, step by step, when you make it for them.'),
@@ -149,7 +149,7 @@ const editTaskInput = {
 	task: z.string().describe('The id of the Task, from find_tasks.'),
 	title: z.string().optional(),
 	when: taskWhen.describe('The list it goes in, or on_day for the day it moves into Today.'),
-	thread: z.string().nullable().optional().describe('The id of its Thread, or null for none. Linking it to a Thread takes it out of its project or area, and moves it from the Inbox to Anytime.'),
+	thread: z.string().nullable().optional().describe('The id of its Thread, or null for none. Linking it to a Thread takes it out of its project or area. A Task linked to a Thread, project or area is never in the Inbox, so linking one moves it to Anytime.'),
 	belongs_to: belongsTo.describe('The project or area it belongs to, which takes it off its Thread.'),
 	notes: z.string().optional().describe('The whole notes, replacing the old ones.'),
 	deadline,

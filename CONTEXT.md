@@ -80,7 +80,7 @@ A single action, which is open until it is **Done** or **Dropped**. Like a **Thr
 _Avoid_: Todo, item, action
 
 **Inbox**:
-The place where captured **Tasks** wait until I move them somewhere. Linking a **Task** in the **Inbox** to a **Thread** sorts it, so it moves to **Anytime**, wherever it is linked; unlinking it leaves it where it is, and a **Task** in another list keeps its list when linked.
+The place where captured **Tasks** wait until I move them somewhere. A **Task** that belongs to a **Thread**, a **Project** or an **Area** has been sorted, so it is never in the **Inbox**: linking a **Task** in the **Inbox** moves it to **Anytime**, and a **Task** added with a **Thread**, **Project** or **Area** and no list goes to **Anytime**, wherever it happens. Unlinking a **Task** leaves it where it is, and a **Task** in another list keeps its list when linked.
 
 **Today**:
 The **Tasks** that must be done today. A **Task** goes here only if it really needs doing that day, so nothing drifts from day to day.
@@ -193,7 +193,7 @@ _Avoid_: Copy
 - A **Session** can reach every **Thread** and **Session** in todos, not only its own tree, but it reads them only when I ask something that needs them. It is never handed the **Whose move**, **When** or **Ended** of other **Threads** and never brings them up by itself
 - Every **Session** runs on the one laptop that runs **Home**. When todos is hosted, the cloud holds only what the **Sessions** report, never the **Sessions** themselves
 - A **Session** can send a prompt to the **Session** of any **Thread**. It is typed into the receiving **Session** as my instruction, because the sending **Session** acts for me, with a line saying which **Session** sent it, so its history stays honest and it knows where to reply. It replies only when the prompt asks it to, and a reply never asks for one back. The sending **Session** writes the prompt as a full brief, because the receiving one has not seen its conversation. A prompt is kept in todos until the receiving **Session** can take it: straight away when it is free or busy, and once I have answered when it is asking me something. A prompt to a **Thread** with no running **Session** starts one in the background, the same way going in from **Home** would, and the prompt is its first. So a prompt can be sent from anywhere, and the laptop delivers it
-- A **Session** can add **Tasks** to any **Thread** or to none; they land in the **Inbox** unless I tell the **Session** to put them somewhere else
+- A **Session** can add **Tasks** to any **Thread** or to none; they land in **Anytime** when linked to a **Thread**, and in the **Inbox** otherwise, unless I tell the **Session** to put them somewhere else
 
 ### Projects and areas
 

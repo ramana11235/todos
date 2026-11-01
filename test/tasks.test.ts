@@ -156,9 +156,9 @@ describe('laying out a list', () => {
 		const web = await threads.create({title: 'Build the web app', parentId: todos.id});
 		await tasks.add({title: 'Pack the kitchen', threadId: house.id});
 		await tasks.add({title: 'Sketch the sidebar', threadId: web.id});
-		await tasks.add({title: 'Call the landlord'});
+		await tasks.add({title: 'Call the landlord', when: {kind: 'anytime'}});
 		await tasks.add({title: 'Try the panel', threadId: todos.id});
-		expect(await shown('inbox')).toEqual([
+		expect(await shown('anytime')).toEqual([
 			'Call the landlord',
 			'-- Build todos --', 'Try the panel',
 			'-- Build the web app --', 'Sketch the sidebar',
@@ -169,7 +169,7 @@ describe('laying out a list', () => {
 	it('shows a Task with no Thread when its Thread is not known yet, as the web app does', async () => {
 		const house = await threads.create({title: 'Move house'});
 		await tasks.add({title: 'Pack the kitchen', threadId: house.id});
-		expect(listRows(await tasks.list(), [], 'inbox', today, []).map(row => (row.kind === 'task' ? row.task.title : row.kind))).toEqual(['Pack the kitchen']);
+		expect(listRows(await tasks.list(), [], 'anytime', today, []).map(row => (row.kind === 'task' ? row.task.title : row.kind))).toEqual(['Pack the kitchen']);
 	});
 
 	it('puts Upcoming under a heading for each day, grouped by Thread within the day and not by project', async () => {
@@ -231,23 +231,38 @@ describe('ticking off, renaming and reordering', () => {
 		expect((await tasks.get(inbox.id)).when).toEqual({kind: 'anytime'});
 		// Unlinking leaves it where it is.
 		expect((await tasks.edit(inbox.id, {threadId: null})).when).toEqual({kind: 'anytime'});
-		// A Task in another list keeps it, and a list given with the link wins.
+		// A Task in another list keeps it, and even asking for the Inbox with
+		// the link puts it in Anytime, because a linked Task is never there.
 		const someday = await tasks.add({title: 'Paint the hall', when: {kind: 'someday'}});
 		expect((await tasks.edit(someday.id, {threadId: house.id})).when).toEqual({kind: 'someday'});
 		const kept = await tasks.add({title: 'Ask Jo'});
-		expect((await tasks.edit(kept.id, {threadId: house.id, when: {kind: 'inbox'}})).when).toEqual({kind: 'inbox'});
+		expect((await tasks.edit(kept.id, {threadId: house.id, when: {kind: 'inbox'}})).when).toEqual({kind: 'anytime'});
+	});
+
+	it('keeps a Task that belongs to a Thread, project or area out of the Inbox', async () => {
+		const house = await threads.create({title: 'Move house'});
+		const projects = new Projects(storage);
+		const home = await projects.createArea({title: 'Home'});
+		const flat = await projects.createProject({title: 'Move flat'});
+		expect((await tasks.add({title: 'Pack the kitchen', threadId: house.id})).when).toEqual({kind: 'anytime'});
+		expect((await tasks.add({title: 'Fix the tap', belongs: {kind: 'area', id: home.id}})).when).toEqual({kind: 'anytime'});
+		expect((await tasks.add({title: 'Book the van', belongs: {kind: 'project', id: flat.id}, when: {kind: 'inbox'}})).when).toEqual({kind: 'anytime'});
+		const loose = await tasks.add({title: 'Buy milk'});
+		expect(loose.when).toEqual({kind: 'inbox'});
+		expect((await tasks.edit(loose.id, {belongs: {kind: 'area', id: home.id}})).when).toEqual({kind: 'anytime'});
+		expect((await tasks.edit(loose.id, {belongs: {kind: 'none'}})).when).toEqual({kind: 'anytime'});
 	});
 
 	it('moves a Task only within its group', async () => {
 		const house = await threads.create({title: 'Move house'});
-		const card = await tasks.add({title: 'Buy a card'});
+		const card = await tasks.add({title: 'Buy a card', when: {kind: 'anytime'}});
 		const wrap = await tasks.add({title: 'Buy bubble wrap', threadId: house.id});
 		await tasks.add({title: 'Wrap the glasses', threadId: house.id});
 		await tasks.reorder(wrap.id, 'up');
-		expect(await shown('inbox')).toEqual(['Buy a card', '-- Move house --', 'Buy bubble wrap', 'Wrap the glasses']);
+		expect(await shown('anytime')).toEqual(['Buy a card', '-- Move house --', 'Buy bubble wrap', 'Wrap the glasses']);
 		await tasks.reorder(wrap.id, 'down');
 		await tasks.reorder(card.id, 'down');
-		expect(await shown('inbox')).toEqual(['Buy a card', '-- Move house --', 'Wrap the glasses', 'Buy bubble wrap']);
+		expect(await shown('anytime')).toEqual(['Buy a card', '-- Move house --', 'Wrap the glasses', 'Buy bubble wrap']);
 	});
 
 	it('puts a Task at any position, so it can be dragged anywhere in its list', async () => {
@@ -270,7 +285,7 @@ describe('ticking off, renaming and reordering', () => {
 		const house = await threads.create({title: 'Move house'});
 		await tasks.add({title: 'Pack the kitchen', threadId: house.id});
 		await threads.edit(house.id, {ended: 'done'});
-		expect(await shown('inbox')).toEqual(['-- Move house --', 'Pack the kitchen']);
+		expect(await shown('anytime')).toEqual(['-- Move house --', 'Pack the kitchen']);
 	});
 });
 
