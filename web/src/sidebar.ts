@@ -65,3 +65,19 @@ export function areaDropped(areas: Area[], active: string, over: string): {id: s
 	order.splice(to, 0, open[from]!);
 	return order.flatMap((a, i) => (a.position === open[i]!.position ? [] : [{id: a.id, position: open[i]!.position}]));
 }
+
+// Escape cancels a drag, and on a narrow screen it would also close the
+// sidebar's sheet the drag is in. `watch` listens on the window in the
+// capture phase, so it sees the press before either of them does, while the
+// drag is still on, and the sheet can stay open for that press and close on
+// the next.
+export function dragEscape(dragging: () => boolean): {watch: (event: Event) => void; endsDrag: (event: Event) => boolean} {
+	let ending: Event | null = null;
+	return {
+		// dnd-kit cancels a drag on this same code.
+		watch: event => {
+			ending = (event as KeyboardEvent).code === 'Escape' && dragging() ? event : null;
+		},
+		endsDrag: event => event === ending,
+	};
+}

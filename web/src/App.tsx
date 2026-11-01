@@ -56,7 +56,7 @@ import {upcomingRows} from './groups';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
-import {areaDropped, projectsDropped, sidebarRows} from './sidebar';
+import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
 
 // A phone on a slow connection can take a while to answer. Giving up early
@@ -553,6 +553,13 @@ export function App() {
 		useSensor(PointerSensor, {activationConstraint: {distance: 6}}),
 		useSensor(TouchSensor, {activationConstraint: {delay: 300, tolerance: 8}}),
 	);
+	const dragOn = useRef(false);
+	dragOn.current = dragging.length > 0 || sidebarDrag.kind !== 'none';
+	const [escape] = useState(() => dragEscape(() => dragOn.current));
+	useEffect(() => {
+		window.addEventListener('keydown', escape.watch, true);
+		return () => window.removeEventListener('keydown', escape.watch, true);
+	}, [escape]);
 	// A project lands among the projects and area rows, and an area among
 	// the areas. For a Task, over the sidebar the list under the pointer
 	// wins; within the list, the nearest row.
@@ -751,7 +758,7 @@ export function App() {
 				setSidebarDrag({kind: 'none'});
 			}}>
 				<SidebarProvider>
-					<Sidebar>
+					<Sidebar escapeEndsDrag={escape.endsDrag}>
 						<SidebarHeader className="px-4 pt-5">
 							<span className="shimmer font-mono text-lg font-bold tracking-tight">todos</span>
 						</SidebarHeader>

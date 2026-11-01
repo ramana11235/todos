@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Area, Project} from '../src/core/project.js';
-import {areaDropped, projectsDropped, sidebarRows} from '../web/src/sidebar.js';
+import {areaDropped, projectsDropped, sidebarRows, dragEscape} from '../web/src/sidebar.js';
 
 const area = (id: string, position: number): Area => ({id, title: id, notes: '', ended: 'not_ended', position, createdAt: ''});
 const project = (id: string, position: number, inArea?: string): Project => ({
@@ -48,5 +48,27 @@ describe('dragging in the sidebar', () => {
 	it('moves an area into the place of the one it is dropped on', () => {
 		expect(areaDropped(areas, 'Home', 'Health')).toEqual([{id: 'Home', position: 0}, {id: 'Health', position: 1}]);
 		expect(areaDropped(areas, 'Home', 'Home')).toEqual([]);
+	});
+});
+
+describe('Escape during a drag on a narrow screen', () => {
+	// Node's EventTarget calls listeners in the order they were added, and a
+	// page calls one on the window in the capture phase before those on the
+	// document, so the watcher is added first here.
+	const press = (target: EventTarget, code: string) => target.dispatchEvent(Object.assign(new Event('keydown'), {code}));
+
+	it('marks the Escape that cancels a drag, even once the drag has heard it, and not a second Escape', () => {
+		const page = new EventTarget();
+		let dragging = true;
+		const escape = dragEscape(() => dragging);
+		const sheetSaw: boolean[] = [];
+		page.addEventListener('keydown', escape.watch);
+		page.addEventListener('keydown', () => (dragging = false));
+		page.addEventListener('keydown', event => sheetSaw.push(escape.endsDrag(event)));
+		press(page, 'Escape');
+		press(page, 'Escape');
+		dragging = true;
+		press(page, 'KeyA');
+		expect(sheetSaw).toEqual([true, false, false]);
 	});
 });

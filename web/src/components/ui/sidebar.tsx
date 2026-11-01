@@ -156,11 +156,15 @@ function Sidebar({
   className,
   children,
   dir,
+  escapeEndsDrag,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
+  // Whether an Escape press cancels a drag, so the sheet on a narrow
+  // screen stays open for it.
+  escapeEndsDrag?: (event: Event) => boolean
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
@@ -181,7 +185,14 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet
+        open={openMobile}
+        onOpenChange={(open, details) => {
+          if (!open && details.reason === "escape-key" && escapeEndsDrag?.(details.event)) return details.cancel()
+          setOpenMobile(open)
+        }}
+        {...props}
+      >
         <SheetContent
           dir={dir}
           data-sidebar="sidebar"
