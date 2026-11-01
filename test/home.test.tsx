@@ -2,7 +2,7 @@ import {render} from 'ink-testing-library';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import type {Client, Seen} from '../src/client/client.js';
 import {childrenOf, type Thread} from '../src/core/thread.js';
-import {Home, hintLines} from '../src/home/home.js';
+import {Home, hintLines, restoreFocusAndSelection} from '../src/home/home.js';
 import {startApi} from './support.js';
 
 let client: Client;
@@ -299,5 +299,38 @@ describe('Home while nobody can see it', () => {
 		await settle();
 		expect(asked).toBeGreaterThan(hidden);
 		unmount();
+	});
+});
+
+describe('Home\'s focus and selection kept between runs', () => {
+	const byTitle = async (title: string) => (await client.threads()).find(thread => thread.title === title)!.id;
+
+	it('keeps both while the Threads are still open', async () => {
+		const [launch, docs] = [await byTitle('Launch v1'), await byTitle('Write the docs')];
+		expect(restoreFocusAndSelection({focusId: launch, selectedId: docs}, await client.threads(), new Set())).toEqual({focusId: launch, selectedId: docs});
+	});
+
+	it('moves the cursor to the focused Thread when the selected one has ended, gone or left the focus', async () => {
+		const [launch, docs, house] = [await byTitle('Launch v1'), await byTitle('Write the docs'), await byTitle('Move house')];
+		await client.edit(docs, {ended: 'done'});
+		const threads = await client.threads();
+		for (const selectedId of [docs, 'gone', house]) {
+			expect(restoreFocusAndSelection({focusId: launch, selectedId}, threads, new Set())).toEqual({focusId: launch, selectedId: launch});
+		}
+	});
+
+	it('opens unfocused when the focused Thread has ended or gone, keeping a selection that is still open', async () => {
+		const [launch, house] = [await byTitle('Launch v1'), await byTitle('Move house')];
+		await client.edit(launch, {ended: 'dropped'});
+		const threads = await client.threads();
+		expect(restoreFocusAndSelection({focusId: launch, selectedId: launch}, threads, new Set())).toEqual({focusId: null, selectedId: null});
+		expect(restoreFocusAndSelection({focusId: 'gone', selectedId: house}, threads, new Set())).toEqual({focusId: null, selectedId: house});
+	});
+
+	it('keeps a selected project or area only while nothing is focused', async () => {
+		const launch = await byTitle('Launch v1');
+		const threads = await client.threads();
+		expect(restoreFocusAndSelection({focusId: null, selectedId: 'project-1'}, threads, new Set(['project-1']))).toEqual({focusId: null, selectedId: 'project-1'});
+		expect(restoreFocusAndSelection({focusId: launch, selectedId: 'project-1'}, threads, new Set(['project-1']))).toEqual({focusId: launch, selectedId: launch});
 	});
 });

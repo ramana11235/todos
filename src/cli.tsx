@@ -152,6 +152,7 @@ function home(): void {
 	runner.markHomeBuild(buildId());
 	onNewBuild(() => runner.restartHome(homeStart(process.env.TODOS_LAUNCH_DIR ?? process.cwd())));
 	const foldsPath = join(todosHome(), 'folded.json');
+	const focusPath = join(todosHome(), 'focus.json');
 	// Home's process is the one on the laptop that delivers prompts. While no
 	// terminal is attached it checks for them less often, since every check
 	// is a request the hosted Instance counts. While I am at the laptop it
@@ -182,6 +183,8 @@ function home(): void {
 			launchDir={process.env.TODOS_LAUNCH_DIR ?? process.cwd()}
 			initialFolded={existsSync(foldsPath) ? JSON.parse(readFileSync(foldsPath, 'utf8')) : []}
 			saveFolded={ids => writeFileSync(foldsPath, JSON.stringify(ids))}
+			initialFocusAndSelection={existsSync(focusPath) ? JSON.parse(readFileSync(focusPath, 'utf8')) : undefined}
+			saveFocusAndSelection={saved => writeFileSync(focusPath, JSON.stringify(saved))}
 			// The task panel's filter reads this to know the selected Thread.
 			onSelect={id => tmux.tryRun(['set-option', '-w', '-t', homeWindow, '@todos_selected', id])}
 			shown={shown}

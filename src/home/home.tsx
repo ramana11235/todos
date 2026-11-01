@@ -24,11 +24,30 @@ export type HomeDeps = {
 	// Which Threads are folded, kept between runs of Home.
 	initialFolded?: string[];
 	saveFolded?: (ids: string[]) => void;
+	// Which Thread is focused and which row is selected, kept between runs of
+	// Home the same way.
+	initialFocusAndSelection?: FocusAndSelection;
+	saveFocusAndSelection?: (saved: FocusAndSelection) => void;
 	onSelect?: (id: string) => void;
 	// False while nobody can see Home, so it stops asking todos for changes
 	// that no one would see. The hosted Instance counts every request.
 	shown?: () => boolean;
 };
+
+export type FocusAndSelection = {focusId: string | null; selectedId: string | null};
+
+// What a saved focus and selection become once the Threads are known again.
+// A focused Thread that has ended or gone leaves Home unfocused, and a
+// selected row that has ended, gone or fallen outside the focus moves the
+// cursor to the focused Thread. parentIds are the projects and areas, which
+// can only be selected while nothing is focused.
+export function restoreFocusAndSelection(saved: FocusAndSelection, threads: Thread[], parentIds: ReadonlySet<string>): FocusAndSelection {
+	const open = (id: string) => threads.some(thread => thread.id === id && thread.ended === 'not_ended');
+	const focusId = saved.focusId && open(saved.focusId) ? saved.focusId : null;
+	const inFocus = (id: string) => focusId === null ? open(id) || parentIds.has(id)
+		: open(id) && (id === focusId || descendantsOf(threads, focusId).some(thread => thread.id === id));
+	return {focusId, selectedId: saved.selectedId && inFocus(saved.selectedId) ? saved.selectedId : focusId};
+}
 
 type Mode =
 	| {kind: 'browse'}
@@ -71,8 +90,8 @@ export function Home(deps: HomeDeps) {
 		setFoldedState(next);
 		deps.saveFolded?.([...next]);
 	};
-	const [focusId, setFocusId] = useState<string | null>(null);
-	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [focusId, setFocusId] = useState<string | null>(deps.initialFocusAndSelection?.focusId ?? null);
+	const [selectedId, setSelectedId] = useState<string | null>(deps.initialFocusAndSelection?.selectedId ?? null);
 	// A Thread just marked Done or Dropped stays where it is, dimmed, until I
 	// select another Thread or change view, as a ticked-off Task does.
 	const [kept, setKept] = useState<string | null>(null);
@@ -151,6 +170,21 @@ export function Home(deps: HomeDeps) {
 	useEffect(() => {
 		if (selectedThreadId) deps.onSelect?.(selectedThreadId);
 	}, [selectedThreadId]);
+
+	// The saved focus and selection are checked once the Threads first load,
+	// and saved from then on, so a run that never loads keeps what was saved.
+	const restored = useRef(false);
+	useEffect(() => {
+		if (!loaded || restored.current) return;
+		restored.current = true;
+		const parentIds = new Set([...belongings.projects, ...belongings.areas].map(parent => parent.id));
+		const next = restoreFocusAndSelection({focusId, selectedId}, threads, parentIds);
+		setFocusId(next.focusId);
+		setSelectedId(next.selectedId);
+	}, [loaded]);
+	useEffect(() => {
+		if (restored.current) deps.saveFocusAndSelection?.({focusId, selectedId: selected?.id ?? null});
+	}, [loaded, focusId, selected?.id]);
 
 	const select = (id: string | null | undefined) => {
 		if (!id) return;
