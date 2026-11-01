@@ -355,7 +355,8 @@ describe('Home render options', () => {
 				</Box>
 			);
 			const stdin = new PassThrough() as unknown as NodeJS.ReadStream;
-			const app = renderInk(frame('shimmer 1'), {...homeRenderOptions, stdout, stdin, patchConsole: false});
+			// Ink writes only the last frame when it detects CI, so the test asks for the terminal behaviour Home gets.
+			const app = renderInk(frame('shimmer 1'), {...homeRenderOptions, stdout, stdin, patchConsole: false, interactive: true});
 			vi.advanceTimersByTime(100);
 			writes.length = 0;
 			app.rerender(frame('shimmer 2'));
