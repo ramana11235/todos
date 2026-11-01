@@ -26,13 +26,13 @@ export function fly(el: HTMLElement, from: DOMRect, to: DOMRect, fade: boolean) 
 	return ghost.animate([at(from, 1), at(to, fade ? 0 : 1)], {duration: ms * 1.6, easing: ease, fill: 'forwards'}).finished.then(() => ghost.remove());
 }
 
-// While I type a new Thread, everything else steps back.
+// While one thing is in focus, everything else steps back. It dims and
+// blurs but keeps its size, because shrinking reads as zooming out.
 export const stepBack = (away: boolean): CSSProperties => ({
 	opacity: away ? 0.3 : 1,
 	filter: away ? 'blur(2px)' : 'none',
-	transform: away ? 'scale(0.97)' : 'none',
 	// Colours keep the 300ms fade rows have when picked.
-	transition: `opacity ${ms}ms ${ease}, filter ${ms}ms ${ease}, transform ${ms}ms ${ease}, background-color 300ms, color 300ms`,
+	transition: `opacity ${ms}ms ${ease}, filter ${ms}ms ${ease}, background-color 300ms, color 300ms`,
 });
 
 // What another motion already shows, for the next change only: Threads

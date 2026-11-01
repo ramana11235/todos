@@ -15,7 +15,7 @@ How things move, such as their weight, speed and the way they settle, is the lan
 ## The principles
 
 1. **Things come from where I asked for them and go where they belong.** A new Task rises from the + button. A Task moved to another list travels into that list in the sidebar. Esc sends a thing back where it came from.
-2. **Focus means the rest steps back.** While I make or open one thing, everything else dims to 30%, blurs slightly and shrinks a little, and comes back when I am done. A small edit in place, such as renaming, does not step anything back.
+2. **Focus means the rest steps back.** While I make or open one thing, everything else dims to 30% and blurs slightly, and comes back when I am done. Nothing shrinks or zooms out, because that pulls the whole page away instead of bringing one thing forward. A small edit in place, such as renaming, does not step anything back.
 3. **Nothing jumps.** Every gap opens and closes smoothly, and every row that changes place glides there.
 4. **A thing stays itself.** What I made or moved is never swapped for something else with a flicker: a new line becomes the selected Task, and an open Task shrinks back into its own row.
 5. **Plain motion only.** Things move, fade, blur and change size. Nothing glows, bounces, sweeps or ripples.
