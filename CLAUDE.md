@@ -63,3 +63,5 @@ Whenever you see a bug, hear me ask for a feature, or notice a chance to improve
 ### Changing the API
 
 The Worker ships before the laptop's build, so the hosted API never meets a client newer than itself. Change the API by expand and contract. Add the new thing alongside the old one, so an older TUI, an open web app tab and Sessions still running an old MCP server keep working. Remove the old thing in a later change, once nothing still uses it, and keep that removal as an issue until it is done. A change where the clients must change first ships the other way round: the laptop side is built and pushed first, and the Worker change lands on main after it. Refusing anything but JSON was one of these.
+
+Change the schema by expand and contract too. CI applies new D1 migrations before it deploys the new Worker, so for a short time the Worker already running meets the new schema, and it keeps meeting it if the deploy then fails. A migration therefore only adds what the running Worker ignores, such as a new table or a column with a default. Dropping or renaming anything waits for a later change, once no running Worker uses it.
