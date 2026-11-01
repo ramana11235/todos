@@ -5,7 +5,7 @@ import {Projects} from '../src/core/projects.js';
 import {Tasks} from '../src/core/tasks.js';
 import {ThreadError, Threads} from '../src/core/threads.js';
 import type {Storage} from '../src/storage/storage.js';
-import {makeStorage} from './support.js';
+import {makeStorage, readNow} from './support.js';
 
 let storage: Storage;
 let tasks: Tasks;
@@ -181,6 +181,14 @@ describe('laying out a list', () => {
 });
 
 describe('ticking off, renaming and reordering', () => {
+	it('keeps both of two edits to different fields of a Task made at the same moment', async () => {
+		const task = await tasks.add({title: 'Call the landlord'});
+		const early = new Tasks(await readNow(storage));
+		await tasks.edit(task.id, {notes: 'About the boiler'});
+		await early.edit(task.id, {title: 'Ring the landlord'});
+		expect(await tasks.get(task.id)).toMatchObject({title: 'Ring the landlord', notes: 'About the boiler'});
+	});
+
 	it('takes a ticked Task out of its list and brings it back when unticked', async () => {
 		const task = await tasks.add({title: 'Call the landlord'});
 		expect(await tasks.edit(task.id, {ended: 'done'})).toMatchObject({ended: 'done', endedAt: expect.any(String)});

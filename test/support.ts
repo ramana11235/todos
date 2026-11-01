@@ -51,3 +51,17 @@ export async function startApi(): Promise<{client: Client; url: string; stop: ()
 		},
 	};
 }
+
+// The storage as it reads now, for a change that read before another change
+// was written: its reads keep returning what is there now, and its writes go
+// through. Two edits that overlap are then one made through this and one made
+// directly, in a fixed order.
+export async function readNow(storage: Storage): Promise<Storage> {
+	const [tasks, projects, areas] = await Promise.all([storage.listTasks(), storage.listProjects(), storage.listAreas()]);
+	return Object.assign(Object.create(storage) as Storage, {
+		listTasks: async () => tasks,
+		getTask: async (id: string) => tasks.find(task => task.id === id),
+		listProjects: async () => projects,
+		listAreas: async () => areas,
+	});
+}

@@ -260,8 +260,7 @@ export class Threads {
 	// Writes only what changed from `before`, so a hook and a Session saving
 	// the same Thread at the same moment do not undo each other's changes.
 	private save(before: Thread, after: Thread): Promise<void> {
-		const changes = Object.fromEntries(Object.entries(after).filter(([field, value]) => before[field as keyof Thread] !== value));
-		return this.storage.updateThread(before.id, changes);
+		return this.storage.updateThread(before.id, changedFields(before, after));
 	}
 
 	private noteSummaryChange(before: Thread, after: Thread): void {
@@ -280,6 +279,13 @@ export class Threads {
 		return this.now().toISOString();
 	}
 
+}
+
+// The fields of `after` that differ from `before`. Saving only these lets
+// two changes to different fields of one row made at the same moment both
+// land, where writing the whole row back would undo the other change.
+export function changedFields<T extends object>(before: T, after: T): Partial<T> {
+	return Object.fromEntries(Object.entries(after).filter(([field, value]) => before[field as keyof T] !== value)) as Partial<T>;
 }
 
 // Fields that only clients older than whose move, When and Ended send. They

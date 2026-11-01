@@ -15,6 +15,8 @@ export interface Storage {
 	listTasks(): Promise<Task[]>;
 	getTask(id: string): Promise<Task | undefined>;
 	saveTask(task: Task): Promise<void>;
+	// Each update below writes only the given fields, as updateThread does.
+	updateTask(id: string, changes: Partial<Task>): Promise<void>;
 	// Gives each Task its place in `ids` as its position, from 0, in one
 	// query, so a long list fits the hosted Instance's queries per request.
 	renumberTasks(ids: string[]): Promise<void>;
@@ -26,8 +28,10 @@ export interface Storage {
 	deletePrompt(id: string): Promise<void>;
 	listAreas(): Promise<Area[]>;
 	saveArea(area: Area): Promise<void>;
+	updateArea(id: string, changes: Partial<Area>): Promise<void>;
 	listProjects(): Promise<Project[]>;
 	saveProject(project: Project): Promise<void>;
+	updateProject(id: string, changes: Partial<Project>): Promise<void>;
 	// Goes up with every change to a Thread, a Task, a project or an area.
 	changeNumber(): Promise<number>;
 	getThoughts(): Promise<Page>;

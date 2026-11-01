@@ -4,7 +4,7 @@ import {homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
 import type {Storage} from '../src/storage/storage.js';
-import {makeStorage, startApi} from './support.js';
+import {makeStorage, readNow, startApi} from './support.js';
 
 let storage: Storage;
 let projects: Projects;
@@ -19,6 +19,18 @@ beforeEach(async () => {
 });
 
 describe('projects and areas', () => {
+	it('keep both of two edits to different fields made at the same moment', async () => {
+		const health = await projects.createArea({title: 'Health'});
+		const run = await projects.createProject({title: 'Run a 10k'});
+		const early = new Projects(await readNow(storage));
+		await projects.editProject(run.id, {notes: 'Couch to 5k first'});
+		await early.editProject(run.id, {title: 'Run a half marathon'});
+		await projects.editArea(health.id, {notes: 'Sleep and food'});
+		await early.editArea(health.id, {title: 'Body'});
+		expect(await projects.getProject(run.id)).toMatchObject({title: 'Run a half marathon', notes: 'Couch to 5k first'});
+		expect(await projects.getArea(health.id)).toMatchObject({title: 'Body', notes: 'Sleep and food'});
+	});
+
 	it('refuse a new Thread they cannot hold without making it', async () => {
 		const todos = await projects.createProject({title: 'Build todos'});
 		const parent = await threads.create({title: 'Plan'});

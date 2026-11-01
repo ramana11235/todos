@@ -7,7 +7,7 @@ import type {Belongs} from './project.js';
 import {requireBelongs} from './projects.js';
 import {dayOf, isDay, listOf, places, type Place, type Step, type Task, type TaskWhen} from './task.js';
 import type {Deadline, Ended, Thread} from './thread.js';
-import {refuseOldFields, requireDeadline, requireEnded, ThreadError, type Threads} from './threads.js';
+import {changedFields, refuseOldFields, requireDeadline, requireEnded, ThreadError, type Threads} from './threads.js';
 
 // A step as it is sent: one without an id is new, and one without done is
 // not ticked.
@@ -135,7 +135,7 @@ export class Tasks {
 			}
 		}
 		if (edit.index !== undefined) next.position = await this.positionAt(next, edit.index);
-		await this.storage.saveTask(next);
+		await this.storage.updateTask(id, changedFields(task, next));
 		return next;
 	}
 
@@ -193,8 +193,8 @@ export class Tasks {
 		const index = group.findIndex(t => t.id === id);
 		const other = group[direction === 'up' ? index - 1 : index + 1];
 		if (!other) return;
-		await this.storage.saveTask({...task, position: other.position});
-		await this.storage.saveTask({...other, position: task.position});
+		await this.storage.updateTask(task.id, {position: other.position});
+		await this.storage.updateTask(other.id, {position: task.position});
 	}
 
 	// Usually only one Task is written, so it goes between its neighbours

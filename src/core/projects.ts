@@ -6,7 +6,7 @@ import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import type {Area, Belongs, InArea, Project} from './project.js';
 import type {Deadline, Ended} from './thread.js';
-import {requireDeadline, requireEnded, ThreadError} from './threads.js';
+import {changedFields, requireDeadline, requireEnded, ThreadError} from './threads.js';
 
 // position is where it sits in the sidebar, as Projects and Areas hold it.
 export type AreaEdit = {title?: string; notes?: string; ended?: 'not_ended' | 'dropped'; position?: number};
@@ -50,7 +50,8 @@ export class Projects {
 	}
 
 	async editArea(id: string, edit: AreaEdit): Promise<Area> {
-		const next = {...(await this.getArea(id))};
+		const area = await this.getArea(id);
+		const next = {...area};
 		if (edit.title !== undefined) next.title = requireTitle(edit.title);
 		if (edit.notes !== undefined) next.notes = String(edit.notes);
 		if (edit.ended !== undefined) {
@@ -58,7 +59,7 @@ export class Projects {
 			next.ended = edit.ended;
 		}
 		if (edit.position !== undefined) next.position = requirePosition(edit.position);
-		await this.storage.saveArea(next);
+		await this.storage.updateArea(id, changedFields(area, next));
 		return next;
 	}
 
@@ -79,14 +80,15 @@ export class Projects {
 	}
 
 	async editProject(id: string, edit: ProjectEdit): Promise<Project> {
-		const next = {...(await this.getProject(id))};
+		const project = await this.getProject(id);
+		const next = {...project};
 		if (edit.title !== undefined) next.title = requireTitle(edit.title);
 		if (edit.notes !== undefined) next.notes = String(edit.notes);
 		if (edit.area !== undefined) next.area = await this.requireInArea(edit.area);
 		if (edit.deadline !== undefined) next.deadline = requireDeadline(edit.deadline);
 		if (edit.ended !== undefined) next.ended = requireEnded(edit.ended);
 		if (edit.position !== undefined) next.position = requirePosition(edit.position);
-		await this.storage.saveProject(next);
+		await this.storage.updateProject(id, changedFields(project, next));
 		return next;
 	}
 

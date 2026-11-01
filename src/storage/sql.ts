@@ -49,7 +49,7 @@ export abstract class SqlStorage implements Storage {
 			thread.summary,
 			thread.nextStep,
 			thread.notes,
-			...Object.values(threadColumnsOf({whoseMove: thread.whoseMove, when: thread.when, ended: thread.ended, deadline: thread.deadline})),
+			...Object.values(columnsOf({whoseMove: thread.whoseMove, when: thread.when, ended: thread.ended, deadline: thread.deadline}, threadColumns)),
 			thread.parentId,
 			...belongsColumns(thread.belongs),
 			thread.position,
@@ -64,11 +64,28 @@ export abstract class SqlStorage implements Storage {
 		);
 	}
 
-	async updateThread(id: string, changes: Partial<Thread>): Promise<void> {
-		const {id: _, ...rest} = changes;
-		const columns = Object.entries(threadColumnsOf(rest));
-		if (columns.length === 0) return;
-		await this.db.run(`UPDATE threads SET ${columns.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?`, ...columns.map(([, value]) => value), id);
+	updateThread(id: string, changes: Partial<Thread>): Promise<void> {
+		return this.update('threads', id, columnsOf(changes, threadColumns));
+	}
+
+	updateTask(id: string, changes: Partial<Task>): Promise<void> {
+		return this.update('tasks', id, columnsOf(changes, taskColumns));
+	}
+
+	updateArea(id: string, changes: Partial<Area>): Promise<void> {
+		return this.update('areas', id, columnsOf(changes, areaColumns));
+	}
+
+	updateProject(id: string, changes: Partial<Project>): Promise<void> {
+		return this.update('projects', id, columnsOf(changes, projectColumns));
+	}
+
+	// Writes only the given columns of one row, leaving the rest as they are.
+	private async update(table: string, id: string, columns: Record<string, unknown>): Promise<void> {
+		const {id: _, ...rest} = columns;
+		const entries = Object.entries(rest);
+		if (entries.length === 0) return;
+		await this.db.run(`UPDATE ${table} SET ${entries.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?`, ...entries.map(([, value]) => value), id);
 	}
 
 	async listTasks(): Promise<Task[]> {
@@ -190,18 +207,45 @@ export abstract class SqlStorage implements Storage {
 	abstract close(): void;
 }
 
-// When and the Deadline each carry a day only in some cases, and the day
-// sits in a column of its own that is empty otherwise.
-function threadColumnsOf(changes: Partial<Thread>): Record<string, unknown> {
+// The columns that hold the given fields. When and the Deadline each carry a
+// day only in some cases, and the day sits in a column of its own that is
+// empty otherwise. The fields shaped like that are the same on every table;
+// the rest are named in `names`.
+function columnsOf(changes: object, names: Record<string, string>): Record<string, unknown> {
 	const columns: Record<string, unknown> = {};
-	for (const [field, value] of Object.entries(changes) as [keyof Thread, any][]) {
+	for (const [field, value] of Object.entries(changes) as [string, any][]) {
 		if (field === 'when') Object.assign(columns, {when_kind: value.kind, when_day: value.kind === 'on_day' ? value.day : null});
 		else if (field === 'deadline') columns.deadline = dayOfDeadline(value);
 		else if (field === 'belongs') Object.assign(columns, belongsColumnsOf(value));
-		else columns[threadColumns[field]] = value;
+		else if (field === 'area') columns.area_id = value.kind === 'in' ? value.id : null;
+		else if (field === 'checklist') columns.checklist = JSON.stringify(value);
+		else if (names[field]) columns[names[field]] = value;
+		else throw new Error(`No column for ${field}`);
 	}
 	return columns;
 }
+
+const taskColumns: Record<Exclude<keyof Task, 'when' | 'deadline' | 'belongs' | 'checklist'>, string> = {
+	id: 'id',
+	title: 'title',
+	threadId: 'thread_id',
+	position: 'position',
+	notes: 'notes',
+	ended: 'ended',
+	endedAt: 'ended_at',
+	createdAt: 'created_at',
+};
+
+const areaColumns: Record<keyof Area, string> = {id: 'id', title: 'title', notes: 'notes', ended: 'ended', position: 'position', createdAt: 'created_at'};
+
+const projectColumns: Record<Exclude<keyof Project, 'area' | 'deadline'>, string> = {
+	id: 'id',
+	title: 'title',
+	notes: 'notes',
+	ended: 'ended',
+	position: 'position',
+	createdAt: 'created_at',
+};
 
 // What a Thread or Task belongs to sits in two columns, the id empty for none.
 const belongsColumnsOf = (belongs: Belongs) => ({belongs_kind: belongs.kind, belongs_id: belongs.kind === 'none' ? null : belongs.id});
