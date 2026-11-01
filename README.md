@@ -9,7 +9,7 @@ todos is a to-do app in the style of Getting Things Done (GTD).
 Install these first:
 
 - Node 22.13 or later
-- tmux 3.3 or later
+- tmux 3.3 or later, the first with the popup that capture uses. `todos` checks this when it starts.
 - Claude Code, signed in, so that `claude` starts a session
 - nvim 0.10 or later, which Thoughts is written in
 - git

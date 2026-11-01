@@ -30,7 +30,7 @@ import {canResume} from './session/claude-sessions.js';
 import {deliverPrompts} from './session/deliver.js';
 import {SessionRunner} from './session/runner.js';
 import {homeWindow, tmuxConfig, tmuxSession} from './session/tmux-config.js';
-import {Tmux} from './session/tmux.js';
+import {minimumTmux, Tmux, tmuxIsNewEnough} from './session/tmux.js';
 import {backup, backupHosted} from './storage/backup.js';
 import {SqliteStorage} from './storage/sqlite.js';
 
@@ -91,7 +91,18 @@ function homeStart(launchDir: string) {
 	return {command: [...selfCommand(), 'home'], env: {...todosEnv(), TODOS_LAUNCH_DIR: launchDir}};
 }
 
+// An older tmux would fail later, at the first key that needs what it lacks,
+// so todos says what it needs before it starts anything.
+function checkTmux(): void {
+	const result = spawnSync('tmux', ['-V'], {encoding: 'utf8'});
+	if (!result.error && tmuxIsNewEnough(result.stdout)) return;
+	const found = result.error ? 'tmux is not installed' : `this is ${result.stdout.trim()}`;
+	console.error(`todos needs tmux ${minimumTmux} or later, and ${found}.`);
+	process.exit(1);
+}
+
 async function open(): Promise<void> {
+	checkTmux();
 	const client = new Client(apiUrl(), apiHeaders());
 	const {tmux, runner, configPath} = tmuxAndRunner();
 	await ensureApi(client);
