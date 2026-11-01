@@ -20,13 +20,14 @@ beforeEach(async () => {
 
 const today = '2026-10-18';
 
-// The rows of a list as text, with Thread headers as `-- title --` and
-// project and area headings as `== area › project ==`.
+// The rows of a list as text, with Thread headers as `-- title --`,
+// project and area headings as `== area › project ==` and days as `## day ##`.
 const shown = async (list: Parameters<typeof listRows>[2]) => {
 	const projects = new Projects(storage);
 	const order = belongingOrder(await projects.listProjects(), await projects.listAreas());
 	return listRows(await tasks.list(), await threads.list(), list, today, order).map(row =>
 		row.kind === 'belonging' ? `== ${row.belonging.path.join(' › ')}${row.belonging.ended === 'not_ended' ? '' : ` (${row.belonging.ended})`} ==`
+		: row.kind === 'day' ? `## ${row.day} ##`
 		: row.kind === 'header' ? `-- ${row.thread.title} --` : row.task.title,
 	);
 };
@@ -147,12 +148,19 @@ describe('laying out a list', () => {
 		]);
 	});
 
-	it('keeps Upcoming in date order within each group', async () => {
-		const house = await threads.create({title: 'Move house'});
+	it('puts Upcoming under a heading for each day, grouped by Thread within the day and not by project', async () => {
+		const projects = new Projects(storage);
+		const flat = await projects.createProject({title: 'New flat'});
+		const house = await threads.create({title: 'Move house', belongs: {kind: 'project', id: flat.id}});
 		await dated('Collect the van', '2026-10-28', house.id);
 		await dated('Book the removals', '2026-10-25', house.id);
+		await dated('Ring the bank', '2026-10-25');
 		await dated('Return the books', '2026-10-24');
-		expect(await shown('upcoming')).toEqual(['Return the books', '-- Move house --', 'Book the removals', 'Collect the van']);
+		expect(await shown('upcoming')).toEqual([
+			'## 2026-10-24 ##', 'Return the books',
+			'## 2026-10-25 ##', 'Ring the bank', '-- Move house --', 'Book the removals',
+			'## 2026-10-28 ##', '-- Move house --', 'Collect the van',
+		]);
 	});
 });
 
@@ -209,7 +217,7 @@ describe('ticking off, renaming and reordering', () => {
 		const later = await dated('Collect the van', '2026-10-28');
 		await dated('Book the removals', '2026-10-25');
 		await tasks.reorder(later.id, 'up');
-		expect(await shown('upcoming')).toEqual(['Book the removals', 'Collect the van']);
+		expect(await shown('upcoming')).toEqual(['## 2026-10-25 ##', 'Book the removals', '## 2026-10-28 ##', 'Collect the van']);
 	});
 
 	it('leaves a Task alone when its Thread ends', async () => {

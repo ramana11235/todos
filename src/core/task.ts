@@ -59,15 +59,22 @@ export const dayOf = (date: Date): string =>
 // Whether a value is a real day such as 2026-10-23.
 export const isDay = (value: unknown): value is string => typeof value === 'string' && dayOf(new Date(`${value}T12:00`)) === value;
 
-export type TaskRow = {kind: 'belonging'; belonging: Belonging} | {kind: 'header'; thread: Thread} | {kind: 'task'; task: Task};
+export type TaskRow = {kind: 'belonging'; belonging: Belonging} | {kind: 'day'; day: string} | {kind: 'header'; thread: Thread} | {kind: 'task'; task: Task};
 
 // The rows of one list: Tasks that belong nowhere first, then a heading for
 // each project or area in `order` with its Tasks. Within each, Tasks with no
 // Thread come first, then a group under each Thread's title in tree order.
-// Within a group Tasks keep their order, except in Upcoming, where they are
-// in date order.
+// Within a group Tasks keep their order. Upcoming instead has a heading for
+// each day, in date order, and groups only by Thread within a day, so it
+// still has no more than two levels of headings.
 export function listRows(tasks: Task[], threads: Thread[], list: List, today: string, order: Belonging[]): TaskRow[] {
-	const inList = tasks.filter(task => listOf(task, today) === list).sort(list === 'upcoming' ? byDate : byPosition);
+	const inList = tasks.filter(task => listOf(task, today) === list).sort((a, b) => a.position - b.position);
+	if (list === 'upcoming') {
+		return [...new Set(inList.map(dayIn))].sort().flatMap((day): TaskRow[] => [
+			{kind: 'day', day},
+			...byThread(inList.filter(task => dayIn(task) === day), threads, today),
+		]);
+	}
 	return groupedByBelonging(inList, task => taskBelongs(task, threads), order).flatMap(({heading, items}): TaskRow[] => [
 		...(heading ? [{kind: 'belonging' as const, belonging: heading}] : []),
 		...byThread(items, threads, today),
@@ -83,7 +90,5 @@ function byThread(inList: Task[], threads: Thread[], today: string): TaskRow[] {
 	return rows;
 }
 
-const byPosition = (a: Task, b: Task) => a.position - b.position;
 // Only Tasks with a day are in Upcoming.
 const dayIn = (task: Task) => (task.when.kind === 'on_day' ? task.when.day : '');
-const byDate = (a: Task, b: Task) => dayIn(a).localeCompare(dayIn(b)) || a.position - b.position;

@@ -1,7 +1,7 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
-import {groupedByThread} from '../web/src/groups.js';
+import {groupedByThread, upcomingRows} from '../web/src/groups.js';
 import {makeStorage} from './support.js';
 
 let tasks: Tasks;
@@ -13,7 +13,8 @@ beforeEach(async () => {
 	threads = new Threads(storage);
 });
 
-const shown = (rows: ReturnType<typeof groupedByThread>) => rows.map(row => (row.kind === 'thread' ? `-- ${row.thread.title} --` : row.task.title));
+const shown = (rows: ReturnType<typeof upcomingRows>) =>
+	rows.map(row => (row.kind === 'day' ? `## ${row.day} ##` : row.kind === 'thread' ? `-- ${row.thread.title} --` : row.task.title));
 
 describe("grouping a list's Tasks under their Threads in the web app", () => {
 	it('puts Tasks with no Thread first, then a group per Thread in tree order', async () => {
@@ -56,5 +57,30 @@ describe("grouping a list's Tasks under their Threads in the web app", () => {
 		const boiler = await threads.create({title: 'Fix the boiler'});
 		await tasks.add({title: 'Ring the engineer', threadId: boiler.id});
 		expect(shown(groupedByThread(await tasks.list(), []))).toEqual(['Ring the engineer']);
+	});
+});
+
+describe("Upcoming's rows in the web app", () => {
+	it('puts a heading for each day, then within the day the Tasks with no Thread and a group per Thread', async () => {
+		const party = await threads.create({title: 'Plan a party'});
+		const tax = await threads.create({title: 'Do the tax return', when: {kind: 'on_day', day: '2099-01-03'}});
+		const passport = await threads.create({title: 'Renew passport', when: {kind: 'on_day', day: '2099-01-10'}});
+		await threads.create({title: 'Went by', when: {kind: 'on_day', day: '2000-01-01'}});
+		const on = (day: string) => ({kind: 'on_day' as const, day});
+		await tasks.add({title: 'Take the bins out', when: on('2099-01-06')});
+		await tasks.add({title: 'Collect the cake', when: on('2099-01-03'), threadId: party.id});
+		await tasks.add({title: 'Find the P60', when: on('2099-01-03'), threadId: tax.id});
+		await tasks.add({title: 'Water the plants', when: on('2099-01-03')});
+		expect(shown(upcomingRows(await tasks.list(), await threads.list(), '2026-11-01'))).toEqual([
+			'## 2099-01-03 ##', 'Water the plants', '-- Plan a party --', 'Collect the cake', '-- Do the tax return --', 'Find the P60',
+			'## 2099-01-06 ##', 'Take the bins out',
+			'## 2099-01-10 ##', '-- Renew passport --',
+		]);
+	});
+
+	it('leaves out a Thread that has ended, even on a day still ahead', async () => {
+		const passport = await threads.create({title: 'Renew passport', when: {kind: 'on_day', day: '2099-01-10'}});
+		await threads.edit(passport.id, {ended: 'done'});
+		expect(shown(upcomingRows([], await threads.list(), '2026-11-01'))).toEqual([]);
 	});
 });

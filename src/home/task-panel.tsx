@@ -6,7 +6,7 @@ import {Box, Text, useInput, useWindowSize} from 'ink';
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import type {Client, Seen} from '../client/client.js';
 import {belongingOrder, type Belonging} from '../core/project.js';
-import {dayOf, listNames, listRows, lists, type List, type Task, type TaskRow} from '../core/task.js';
+import {dayOf, listNames, listOf, listRows, lists, type List, type Task, type TaskRow} from '../core/task.js';
 import {descendantsOf, type Thread} from '../core/thread.js';
 import {dayName} from '../core/words.js';
 import {Highlighted, hintLines} from './home.js';
@@ -170,7 +170,10 @@ export function TaskPanel(deps: TaskPanelDeps) {
 
 	const drawn: ReactNode[] = [];
 	rows.forEach((row, i) => {
-		drawn.push(<RowView key={row.kind === 'belonging' ? `b-${row.belonging.path.join('/')}` : row.kind === 'header' ? `h-${row.thread.id}` : row.task.id} row={row} today={today} first={i === 0}
+		// A heading straight under a day's heading needs no gap, since the day
+		// already sets the group apart.
+		const key = row.kind === 'belonging' ? `b-${row.belonging.path.join('/')}` : row.kind === 'day' ? `d-${row.day}` : row.kind === 'header' ? `h-${row.thread.id}` : row.task.id;
+		drawn.push(<RowView key={key} row={row} today={today} first={i === 0 || rows[i - 1]!.kind === 'day'}
 			selected={row.kind === 'task' && row.task.id === selected?.id} mode={mode} query={mode.kind === 'search' ? mode.query : query}
 			onRename={title => {
 				setMode({kind: 'browse'});
@@ -225,6 +228,16 @@ function Header({title, first}: {title: string; first: boolean}) {
 	);
 }
 
+// A day in Upcoming over its Tasks and their Threads, bright and bold as a
+// project or area is, since Upcoming has no project or area headings.
+function DayHeading({day, today, first}: {day: string; today: string; first: boolean}) {
+	return (
+		<Box marginTop={first ? 0 : 1}>
+			<Text color={colours.text} bold wrap="truncate">{dayName(day, today)}</Text>
+		</Box>
+	);
+}
+
 // A project or area over its Tasks and their Threads, brighter than a
 // Thread's heading so the two levels read apart.
 function BelongingHeading({belonging, first}: {belonging: Belonging; first: boolean}) {
@@ -243,6 +256,7 @@ function RowView({row, today, first, selected, mode, query, onRename, onRenameCh
 	onRename: (title: string) => void; onRenameChange: (title: string) => void;
 }) {
 	if (row.kind === 'belonging') return <BelongingHeading belonging={row.belonging} first={first} />;
+	if (row.kind === 'day') return <DayHeading day={row.day} today={today} first={first} />;
 	if (row.kind === 'header') return <Header title={row.thread.title} first={first} />;
 	const {task} = row;
 	const done = task.ended === 'done';
@@ -253,7 +267,8 @@ function RowView({row, today, first, selected, mode, query, onRename, onRenameCh
 				<Text color={selected ? colours.blue : colours.dim}>{done ? '● ' : '○ '}</Text>
 				{renaming ? <TextInput value={mode.title} onChange={onRenameChange} onSubmit={onRename} /> : <Highlighted text={task.title} query={query} />}
 			</Text>
-			{task.when.kind === 'on_day' ? <Text color={colours.dim}>{` ${dayName(task.when.day, today)}`}</Text> : null}
+			{/* In Upcoming the day's heading already says it. */}
+			{task.when.kind === 'on_day' && listOf(task, today) !== 'upcoming' ? <Text color={colours.dim}>{` ${dayName(task.when.day, today)}`}</Text> : null}
 		</Box>
 	);
 }

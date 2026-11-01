@@ -52,7 +52,7 @@ import {NewTask, type Draft} from './NewTask';
 import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
-import {groupedByThread} from './groups';
+import {groupedByThread, upcomingRows} from './groups';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
@@ -264,11 +264,7 @@ export function App() {
 			return withHeadings(shown, t => (t.endedAt ? dayName(dayOf(new Date(t.endedAt))) : ''));
 		}
 		const inList = [...tasks.filter(t => !kept.has(t.id) && listOf(t, now) === view), ...kept.values()];
-		if (view === 'upcoming') {
-			const day = (t: Task) => (t.when.kind === 'on_day' ? t.when.day : '');
-			inList.sort((a, b) => day(a).localeCompare(day(b)) || a.position - b.position);
-			return withHeadings(inList, t => (day(t) ? dayName(day(t)) : ''));
-		}
+		if (view === 'upcoming') return upcomingRows(inList, threads, now).map(row => (row.kind === 'day' ? {kind: 'header', label: dayName(row.day)} : row));
 		// Going into Someday is looking, so the Threads parked there show too.
 		const parked = view === 'someday' ? threads.filter(t => t.ended === 'not_ended' && t.when.kind === 'someday') : [];
 		const items: ({kind: 'task'; task: Task} | {kind: 'thread'; thread: Thread})[] = [
@@ -284,6 +280,8 @@ export function App() {
 				.map(row => (row.kind === 'thread' && heading ? {...row, nested: true} : row)),
 		]);
 	}, [tasks, ended, kept, view, now, threads, shown, order]);
+	// Upcoming itself, not a page opened while it was the list.
+	const inUpcoming = view === 'upcoming' && shown.kind === 'none';
 	const shownTasks = rows.flatMap(r => (r.kind === 'task' ? [r.task] : []));
 	const ids = shownTasks.map(t => t.id);
 	// The selected Tasks still in view, in the order they are shown.
@@ -870,17 +868,25 @@ export function App() {
 										<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 											{rows.map(row =>
 												row.kind === 'header' ? (
-													<h2 key={`h-${row.label}`} className="mt-6 mb-1 border-b pb-1 text-sm font-semibold first:mt-0">
+													<h2 key={`h-${row.label}`} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
 														{row.label}
 													</h2>
 												) : row.kind === 'belonging' ? (
 													<BelongingHeading key={`b-${row.belonging.path.join('/')}`} belonging={row.belonging} onOpen={openPage} />
 												) : row.kind === 'thread' ? (
-													<h2 key={`t-${row.thread.id}`} className={cn('mb-1 text-sm font-semibold first:mt-0', row.nested || shown.kind !== 'none' ? 'mt-4' : 'mt-6 border-b pb-1')}>
+													<h2
+														key={`t-${row.thread.id}`}
+														className={cn(
+															'mb-1 text-sm font-semibold first:mt-0',
+															// Under a day the day's heading sets the group apart, so a Thread's
+															// heading has no rule and sits closer when straight under it.
+															inUpcoming ? 'mt-6 [h2+&]:mt-3' : row.nested || shown.kind !== 'none' ? 'mt-4' : 'mt-6 border-b pb-1',
+														)}
+													>
 														<button className="group flex items-center gap-2 hover:text-(--icon-bright)" onClick={() => showThread(row.thread.id)}>
 															<StateDot shown={shownMove(row.thread)} dimmed={!isActive(row.thread, today())} />
 															<span className={cn(shownMove(row.thread) === 'working' && 'shimmer')}>{row.thread.title}</span>
-															{row.thread.when.kind === 'someday' && row.thread.ended === 'not_ended' && <span className="text-xs font-normal text-muted-foreground">someday</span>}
+															{row.thread.when.kind === 'someday' && row.thread.ended === 'not_ended' && !inUpcoming && <span className="text-xs font-normal text-muted-foreground">someday</span>}
 															<ChevronRightIcon className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
 														</button>
 													</h2>
