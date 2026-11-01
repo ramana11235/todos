@@ -38,6 +38,10 @@ export type Belongs = {kind: 'none'} | {kind: 'project'; id: string} | {kind: 'a
 export const sameBelongs = (a: Belongs, b: Belongs): boolean =>
 	a.kind === b.kind && (a.kind === 'none' || a.id === (b as {id: string}).id);
 
+// Tells apart what a heading is for by what it is and its id, as a project
+// and an area can have the same title.
+export const belongsKey = (belongs: Belongs): string => (belongs.kind === 'none' ? 'none' : `${belongs.kind}-${belongs.id}`);
+
 // A Thread belongs where the Thread at the top of its tree does.
 export function threadBelongs(thread: Thread, threads: Thread[]): Belongs {
 	const byId = new Map(threads.map(candidate => [candidate.id, candidate]));

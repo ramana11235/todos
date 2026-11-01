@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Projects} from '../src/core/projects.js';
-import {homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
+import {belongingOrder, belongsKey, homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
 import type {Storage} from '../src/storage/storage.js';
@@ -157,6 +157,14 @@ describe('what a Thread belongs to', () => {
 		const mine = await threads.create({title: 'Find a gym'});
 		await threads.sessionUpdate(mine.id, {belongs: {kind: 'area', id: health.id}});
 		expect((await threads.get(mine.id)).belongs).toEqual({kind: 'area', id: health.id});
+	});
+
+	it('give a project and an area with the same title headings told apart by what they are and their id', async () => {
+		await projects.createArea({title: 'Writing'});
+		await projects.createProject({title: 'Writing'});
+		const order = belongingOrder(await projects.listProjects(), await projects.listAreas());
+		expect(order.map(one => one.path)).toEqual([['Writing'], ['Writing']]);
+		expect(new Set(order.map(one => belongsKey(one.belongs))).size).toBe(2);
 	});
 });
 

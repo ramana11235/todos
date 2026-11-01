@@ -5,7 +5,7 @@
 import {Box, Text, useInput, useWindowSize} from 'ink';
 import {useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import type {Client, Seen} from '../client/client.js';
-import {belongingOrder, type Belonging} from '../core/project.js';
+import {belongingOrder, belongsKey, type Belonging} from '../core/project.js';
 import {dayOf, listNames, listOf, listRows, lists, type List, type Task, type TaskRow} from '../core/task.js';
 import {descendantsOf, type Thread} from '../core/thread.js';
 import {dayName} from '../core/words.js';
@@ -172,7 +172,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 	rows.forEach((row, i) => {
 		// A heading straight under a day's heading needs no gap, since the day
 		// already sets the group apart.
-		const key = row.kind === 'belonging' ? `b-${row.belonging.path.join('/')}` : row.kind === 'day' ? `d-${row.day}` : row.kind === 'thread' ? `h-${row.thread.id}` : row.task.id;
+		const key = row.kind === 'belonging' ? `b-${belongsKey(row.belonging.belongs)}` : row.kind === 'day' ? `d-${row.day}` : row.kind === 'thread' ? `h-${row.thread.id}` : row.task.id;
 		drawn.push(<RowView key={key} row={row} today={today} first={i === 0 || rows[i - 1]!.kind === 'day'}
 			selected={row.kind === 'task' && row.task.id === selected?.id} mode={mode} query={mode.kind === 'search' ? mode.query : query}
 			onRename={title => {

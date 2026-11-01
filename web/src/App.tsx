@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/sidebar';
 import {useIsMobile} from '@/hooks/use-mobile';
 import {ApiError, Client, type Seen} from '../../src/client/client';
-import {belongingOrder, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
+import {belongingOrder, belongsKey, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
 import {dayOf, groupedByThread, listNames, listOf, lists, type List, type Place, type Task} from '../../src/core/task';
 import type {TaskEdit} from '../../src/core/tasks';
@@ -872,7 +872,7 @@ export function App() {
 														{row.label}
 													</h2>
 												) : row.kind === 'belonging' ? (
-													<BelongingHeading key={`b-${row.belonging.path.join('/')}`} belonging={row.belonging} onOpen={openPage} />
+													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} belonging={row.belonging} onOpen={openPage} />
 												) : row.kind === 'thread' ? (
 													<h2
 														key={`t-${row.thread.id}`}
