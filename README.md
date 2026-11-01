@@ -30,7 +30,7 @@ With a deploy key:
    ssh-keygen -t ed25519 -f ~/.ssh/todos_deploy -N ""
    ```
 
-2. On GitHub, open the repo's Settings, then Deploy keys, and add the contents of `~/.ssh/todos_deploy.pub`. Leave "Allow write access" off.
+2. On GitHub, open the repo's Settings, then Deploy keys, then Add deploy key, and paste the contents of `~/.ssh/todos_deploy.pub` as the key. Leave "Allow write access" off.
 
 3. Clone with that key, and tell git to keep using it for this repo:
 
@@ -42,9 +42,9 @@ With a deploy key:
 
 With a token:
 
-1. On GitHub, make a fine-grained personal access token that can see only this repo, with Contents set to read-only.
+1. On GitHub, make a fine-grained personal access token from your account's Settings, then Developer settings, then Personal access tokens, then Fine-grained tokens. Under Repository access choose "Only select repositories" and pick this repo, and under Permissions set Contents to read-only.
 
-2. Clone over HTTPS. When git asks, give your GitHub user name and paste the token as the password:
+2. Clone over HTTPS. When git asks for a user name, type the user name of the GitHub account that made the token. GitHub checks only the token, so the computer does not need to be signed in to GitHub, but the user name must not be blank. Paste the token as the password:
 
    ```sh
    git clone https://github.com/<owner>/todos.git
@@ -65,9 +65,9 @@ npm link
 
 #### 3. Start it
 
-Run `todos` from the folder you want new Sessions to start in by default. The first time, it starts the todos API in the background, starts todos' own tmux server and opens Home. Home is empty until you add a Thread with `A`.
+Run `todos` from the folder you want new Sessions to start in by default. The first time, it starts the todos API in the background, starts todos' own tmux server and opens Home. Home is empty until you add a Thread, an outcome you are working towards, with `A`. "How it works" below says more about Threads.
 
-The web app is served by the same API, at http://127.0.0.1:7316.
+The web app is served by the same API, at http://127.0.0.1:7316, or at the port `TODOS_PORT` names if you set it.
 
 Data lives in `~/.todos`. Set `TODOS_HOME` to keep a separate copy somewhere else, and `TODOS_PORT` if the default port 7316 is taken. `TODOS_TMUX_SOCKET` names the tmux server todos uses, which is `todos` by default.
 
@@ -131,7 +131,7 @@ A computer that uses the hosted Instance runs Home and its Sessions as usual, bu
 
 4. Run `todos`. It uses the hosted Instance and starts no API on this computer. The web app is at the custom domain, where Access asks you to sign in.
 
-Every computer that uses a hosted Instance needs its own `wrangler.jsonc`, copied from `wrangler.example.jsonc` and filled in the same way, because `todos backup` runs `wrangler d1 export` with it to back up the hosted data. A computer with only a local Instance needs none.
+Every computer that uses a hosted Instance needs its own `wrangler.jsonc`, copied from `wrangler.example.jsonc` and filled in the same way, because `todos backup` runs `wrangler d1 export` with it to back up the hosted data. That computer must also be signed in to Cloudflare with `npx wrangler login`, run once from the repo folder. A computer with only a local Instance needs neither.
 
 ## How it works
 
