@@ -58,7 +58,7 @@ export function createHandler(
 		['GET', '/api/health', async () => ({ok: true, build, home, pid})],
 		['GET', '/api/threads', async () => threads.list()],
 		['POST', '/api/threads', async (_, body) =>
-			threads.create({title: body.title, parentId: body.parentId ?? null, afterId: body.afterId ?? null, index: body.index, notes: body.notes, summary: body.summary, nextStep: body.nextStep, belongs: body.belongs}),
+			threads.create({title: body.title, parentId: body.parentId ?? null, afterId: body.afterId ?? null, index: body.index, notes: body.notes, summary: body.summary, nextStep: body.nextStep, when: body.when, deadline: body.deadline, belongs: body.belongs}),
 		],
 		['GET', '/api/threads/:id', async ({id}) => threads.get(id!)],
 		['PATCH', '/api/threads/:id', async ({id}, body) => threads.edit(id!, body)],

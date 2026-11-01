@@ -95,6 +95,11 @@ describe('the API with its client', () => {
 		expect(await client.thread(mcp.id)).toMatchObject({parentId: launch.id, nextStep: 'Waiting on CI'});
 	});
 
+	it('keeps the day and deadline a Thread is made with', async () => {
+		const thread = await client.create('Renew the passport', null, null, {when: {kind: 'on_day', day: '2026-12-01'}, deadline: {kind: 'by_day', day: '2026-12-20'}});
+		expect(await client.thread(thread.id)).toMatchObject({when: {kind: 'on_day', day: '2026-12-01'}, deadline: {kind: 'by_day', day: '2026-12-20'}});
+	});
+
 	it('keeps Threads in the SQLite file across a restart', async () => {
 		const thread = await client.create('Move house');
 		await stop();

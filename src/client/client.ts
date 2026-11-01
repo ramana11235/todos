@@ -7,7 +7,7 @@ import type {AreaEdit, NewProject, ProjectEdit} from '../core/projects.js';
 import type {Task} from '../core/task.js';
 import type {NewTask, TaskEdit} from '../core/tasks.js';
 import type {Page, SaveResult} from '../core/thoughts.js';
-import type {Prompt, SessionSignal, Thread} from '../core/thread.js';
+import type {Deadline, Prompt, SessionSignal, Thread, When} from '../core/thread.js';
 import type {MyEdit, SessionUpdate, SessionUpdateResult, SessionView} from '../core/threads.js';
 
 // The change number a client last saw, if any.
@@ -56,7 +56,7 @@ export class Client {
 		title: string,
 		parentId: string | null = null,
 		afterId: string | null = null,
-		fields: {notes?: string; summary?: string; nextStep?: string; belongs?: Belongs} = {},
+		fields: {notes?: string; summary?: string; nextStep?: string; when?: When; deadline?: Deadline; belongs?: Belongs} = {},
 	): Promise<Thread> => this.call('POST', '/api/threads', {title, parentId, afterId, ...fields});
 
 	edit = (id: string, edit: MyEdit): Promise<Thread> => this.call('PATCH', `/api/threads/${id}`, edit);
