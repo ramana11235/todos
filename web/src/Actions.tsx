@@ -8,15 +8,11 @@ import {
 	ContextMenuGroup,
 	ContextMenuItem,
 	ContextMenuSeparator,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
 } from '@/components/ui/context-menu';
 import type {Belonging, Belongs} from '../../src/core/project';
 import type {TaskEdit} from '../../src/core/tasks';
 import {BelongsPicker} from './Pages';
 import {DeadlinePicker} from './Deadline';
-import {addDays, today} from './days';
 import {ThreadPicker} from './ThreadPicker';
 import {WhenPicker} from './When';
 import type {Deadline, Thread} from '../../src/core/thread';
@@ -100,56 +96,32 @@ export function SelectionBar({count, actions, threads, order, onClear}: {count: 
 	);
 }
 
-// The right-click menu, with the same actions and the usual days at hand.
-// Thread… and Project… open their pickers in a dialog, as / does on the
-// Threads page, because a menu has no room to search in.
-export function TaskMenu({actions, threads, order}: {actions: Actions; threads: Thread[]; order: Belonging[]}) {
-	const [picking, setPicking] = useState<'thread' | 'belongs' | null>(null);
-	const now = today();
-	const when: [string, TaskEdit][] = [
-		['Today', {when: {kind: 'today'}}],
-		['Tomorrow', {when: {kind: 'on_day', day: addDays(now, 1)}}],
-		['Next week', {when: {kind: 'on_day', day: addDays(now, 7)}}],
-		['Anytime', {when: {kind: 'anytime'}}],
-		['Someday', {when: {kind: 'someday'}}],
-		['Inbox', {when: {kind: 'inbox'}}],
-	];
-	const deadline: [string, Deadline][] = [
-		['Today', {kind: 'by_day', day: now}],
-		['Tomorrow', {kind: 'by_day', day: addDays(now, 1)}],
-		['In a week', {kind: 'by_day', day: addDays(now, 7)}],
-		['Clear', {kind: 'none'}],
-	];
+// The right-click menu, with everything the bar at the bottom can do. Each
+// item names its action, and the ones that need a choice open the bar's own
+// picker in a dialog, as / does on the Threads page, because a menu has no
+// room for a calendar or a search.
+export function TaskMenu({actions, threads, order, onTurnIntoThread}: {
+	actions: Actions;
+	threads: Thread[];
+	order: Belonging[];
+	// Only for a single Task.
+	onTurnIntoThread?: (parentId: string | null) => void;
+}) {
+	const [picking, setPicking] = useState<'when' | 'deadline' | 'thread' | 'belongs' | 'turn' | null>(null);
+	const then = (run: () => void) => {
+		setPicking(null);
+		run();
+	};
+	const title = {when: 'Set a day', deadline: 'Set a deadline', thread: 'Link to a Thread', belongs: 'Put in a project or area', turn: 'Turn into a Thread'};
 	return (
 		<>
 			<ContextMenuContent>
 				<ContextMenuGroup>
-					<ContextMenuSub>
-						<ContextMenuSubTrigger>When</ContextMenuSubTrigger>
-						<ContextMenuSubContent>
-							<ContextMenuGroup>
-								{when.map(([label, edit]) => (
-									<ContextMenuItem key={label} onClick={() => actions.when(edit)}>
-										{label}
-									</ContextMenuItem>
-								))}
-							</ContextMenuGroup>
-						</ContextMenuSubContent>
-					</ContextMenuSub>
-					<ContextMenuSub>
-						<ContextMenuSubTrigger>Deadline</ContextMenuSubTrigger>
-						<ContextMenuSubContent>
-							<ContextMenuGroup>
-								{deadline.map(([label, given]) => (
-									<ContextMenuItem key={label} onClick={() => actions.deadline(given)}>
-										{label}
-									</ContextMenuItem>
-								))}
-							</ContextMenuGroup>
-						</ContextMenuSubContent>
-					</ContextMenuSub>
-					<ContextMenuItem onClick={() => setPicking('thread')}>Thread…</ContextMenuItem>
-					<ContextMenuItem onClick={() => setPicking('belongs')}>Project or area…</ContextMenuItem>
+					<ContextMenuItem onClick={() => setPicking('when')}>{title.when}</ContextMenuItem>
+					<ContextMenuItem onClick={() => setPicking('deadline')}>{title.deadline}</ContextMenuItem>
+					<ContextMenuItem onClick={() => setPicking('thread')}>{title.thread}</ContextMenuItem>
+					<ContextMenuItem onClick={() => setPicking('belongs')}>{title.belongs}</ContextMenuItem>
+					{onTurnIntoThread && <ContextMenuItem onClick={() => setPicking('turn')}>{title.turn}</ContextMenuItem>}
 				</ContextMenuGroup>
 				<ContextMenuSeparator />
 				<ContextMenuGroup>
@@ -158,26 +130,21 @@ export function TaskMenu({actions, threads, order}: {actions: Actions; threads: 
 				</ContextMenuGroup>
 			</ContextMenuContent>
 			<Dialog open={picking !== null} onOpenChange={open => !open && setPicking(null)}>
-				<DialogContent showCloseButton={false} className="top-[30%] p-2">
-					<DialogTitle className="sr-only">{picking === 'belongs' ? 'Put in a project or area' : 'Link to a Thread'}</DialogTitle>
-					{picking === 'belongs' ? (
-						<BelongsPicker
-							order={order}
-							start={{kind: 'none'}}
-							onPick={belongs => {
-								setPicking(null);
-								actions.belongs(belongs);
-							}}
-						/>
+				<DialogContent showCloseButton={false} className={picking === 'when' || picking === 'deadline' ? 'w-auto p-1' : 'top-[30%] p-2'}>
+					<DialogTitle className="sr-only">{picking ? title[picking] : ''}</DialogTitle>
+					{picking === 'when' ? (
+						<WhenPicker task={null} inbox onEdit={edit => then(() => actions.when(edit))} />
+					) : picking === 'deadline' ? (
+						<DeadlinePicker deadline={{kind: 'none'}} onChange={given => then(() => actions.deadline(given))} />
+					) : picking === 'belongs' ? (
+						<BelongsPicker order={order} start={{kind: 'none'}} onPick={belongs => then(() => actions.belongs(belongs))} />
+					) : picking === 'turn' ? (
+						<>
+							<p className="px-2 pt-1 pb-1 text-xs font-medium text-muted-foreground">Put the new Thread in</p>
+							<ThreadPicker threads={threads} first="Top level" onPick={parentId => then(() => onTurnIntoThread?.(parentId))} />
+						</>
 					) : (
-						<ThreadPicker
-							threads={threads}
-							first="None"
-							onPick={id => {
-								setPicking(null);
-								actions.thread(id);
-							}}
-						/>
+						<ThreadPicker threads={threads} first="None" onPick={id => then(() => actions.thread(id))} />
 					)}
 				</DialogContent>
 			</Dialog>

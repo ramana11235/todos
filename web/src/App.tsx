@@ -1116,7 +1116,7 @@ export function App() {
 										</SortableContext>
 										{adding && <NewTask start={startDraft()} threads={threads} onDone={draft => void add(draft)} />}
 									</ContextMenuTrigger>
-									{chosen.length > 0 && <TaskMenu actions={actions(chosen)} threads={threads} order={order} />}
+									{chosen.length > 0 && <TaskMenu actions={actions(chosen)} threads={threads} order={order} onTurnIntoThread={chosen.length === 1 && known.current.get(chosen[0]!) ? parentId => void turnIntoThread(known.current.get(chosen[0]!)!, parentId) : undefined} />}
 								</ContextMenu>
 							</main>
 						)}
