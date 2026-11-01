@@ -96,7 +96,9 @@ Running `todos` also replaces an API or Home that is running an older build.
 
 ### Hosting
 
-The hosted Instance runs on Cloudflare as a Worker on D1, behind Cloudflare Access. Its config lives in `wrangler.jsonc` at the repo root, which git ignores because it names your own domain, Access team, Access app and D1 database. Copy `wrangler.example.jsonc` to `wrangler.jsonc`, fill in those values, and deploy with `npx wrangler deploy`. The tests use `wrangler.example.jsonc` as it is, so they need no hosting config.
+The hosted Instance runs on Cloudflare as a Worker on D1, behind Cloudflare Access. Its config lives in `wrangler.jsonc` at the repo root, which git ignores because it names your own domain, Access team, Access app and D1 database. The tests use `wrangler.example.jsonc` as it is, so they need no hosting config.
+
+Nobody deploys from a laptop. A push to main runs the tests on GitHub Actions, and if they pass, the same workflow (`.github/workflows/test.yml`) writes `wrangler.jsonc` from `wrangler.example.jsonc`, applies any new D1 migrations to the hosted database with `npx wrangler d1 migrations apply todos --remote`, builds the web app and deploys the Worker with it. If a migration fails, nothing is deployed. The values it fills in are repository variables on GitHub: `ROUTE_PATTERN` (the custom domain), `ACCESS_TEAM`, `ACCESS_AUD` and `D1_DATABASE_ID`. The Cloudflare API token and account id are the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Once the deploy has passed, run `git pull && npm install && npm run build` on each computer as usual.
 
 Every computer that uses a hosted Instance needs its own `wrangler.jsonc`, copied from `wrangler.example.jsonc` and filled in the same way, because `todos backup` runs `wrangler d1 export` with it to back up the hosted data. A computer with only a local Instance needs none.
 

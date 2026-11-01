@@ -1,4 +1,4 @@
-name: Test
+name: Test and deploy
 
 on:
   push:
@@ -22,3 +22,56 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  # Only a commit on main whose tests passed reaches the hosted Instance.
+  deploy:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # One deploy at a time, so an older commit never lands after a newer one.
+    concurrency: deploy
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - name: Write wrangler.jsonc from the example and the repository variables
+        env:
+          ROUTE_PATTERN: ${{ vars.ROUTE_PATTERN }}
+          ACCESS_TEAM: ${{ vars.ACCESS_TEAM }}
+          ACCESS_AUD: ${{ vars.ACCESS_AUD }}
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            let config = fs.readFileSync("wrangler.example.jsonc", "utf8");
+            const placeholders = {
+              ROUTE_PATTERN: "todos.example.com",
+              ACCESS_TEAM: "https://your-team.cloudflareaccess.com",
+              ACCESS_AUD: "your-access-app-audience-tag",
+              D1_DATABASE_ID: "your-d1-database-id",
+            };
+            for (const [name, placeholder] of Object.entries(placeholders)) {
+              const value = process.env[name];
+              if (!value) throw new Error(`The repository variable ${name} is not set`);
+              const quoted = JSON.stringify(placeholder);
+              if (config.split(quoted).length !== 2) throw new Error(`wrangler.example.jsonc must hold ${quoted} exactly once`);
+              config = config.replace(quoted, () => JSON.stringify(value));
+            }
+            fs.writeFileSync("wrangler.jsonc", config);
+          '
+      # Outside a terminal wrangler answers its own confirmation with yes, and it
+      # applies nothing when the hosted database already has every migration.
+      - name: Apply new migrations to the hosted database
+        run: npx wrangler d1 migrations apply todos --remote
+      - run: npx vite build --config web/vite.config.ts
+      - uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --no-autoconfig
