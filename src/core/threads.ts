@@ -181,8 +181,14 @@ export class Threads {
 		const index = siblings.findIndex(sibling => sibling.id === id);
 		const other = siblings[direction === 'up' ? index - 1 : index + 1];
 		if (!other) return;
-		await this.save(thread, {...thread, position: other.position});
-		await this.save(other, {...other, position: thread.position});
+		// The two swap places and every sibling is renumbered, which also works
+		// when the two share a position, where swapping positions would not.
+		const order = childrenOf(threads, thread.parentId);
+		const [from, to] = [order.indexOf(siblings[index]!), order.indexOf(other)];
+		[order[from], order[to]] = [other, siblings[index]!];
+		for (const [position, sibling] of order.entries()) {
+			if (sibling.position !== position) await this.save(sibling, {...sibling, position});
+		}
 	}
 
 	async recordSession(

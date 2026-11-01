@@ -74,7 +74,9 @@ export function shownMove(thread: Thread): ShownMove {
 export function childrenOf(threads: Thread[], parentId: string | null): Thread[] {
 	return threads
 		.filter(thread => thread.parentId === parentId)
-		.sort((a, b) => a.position - b.position);
+		// Two Threads made at the same moment can share a position, so the
+		// older one comes first and the order never changes between loads.
+		.sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
 }
 
 export function ancestorsOf(threads: Thread[], id: string): Thread[] {

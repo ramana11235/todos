@@ -1,14 +1,17 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {directoryOf, shownMove, treeRows, type Thread, type View} from '../src/core/thread.js';
+import {childrenOf, directoryOf, shownMove, treeRows, type Thread, type View} from '../src/core/thread.js';
 import {ThreadError, Threads} from '../src/core/threads.js';
+import type {Storage} from '../src/storage/storage.js';
 import {makeStorage} from './support.js';
 
+let storage: Storage;
 let threads: Threads;
 let clock: number;
 
 beforeEach(async () => {
 	clock = Date.parse('2026-10-17T09:00:00Z');
-	threads = new Threads(await makeStorage(), () => new Date((clock += 1000)));
+	storage = await makeStorage();
+	threads = new Threads(storage, () => new Date((clock += 1000)));
 });
 
 const today = '2026-10-17';
@@ -61,6 +64,19 @@ describe('creating and arranging Threads', () => {
 		expect(await titles()).toEqual(['A', 'C', 'B']);
 		await threads.reorder(a.id, 'down');
 		expect(await titles()).toEqual(['C', 'A', 'B']);
+	});
+
+	// Two Sessions making Threads under one parent at the same moment can
+	// give both the same position.
+	it('keeps two Threads with the same position in the order they were made', async () => {
+		const a = await threads.create({title: 'A'});
+		const b = await threads.create({title: 'B'});
+		await storage.updateThread(b.id, {position: a.position});
+		expect(childrenOf([await threads.get(b.id), await threads.get(a.id)], null).map(t => t.title)).toEqual(['A', 'B']);
+		await threads.reorder(b.id, 'up');
+		expect(await titles()).toEqual(['B', 'A']);
+		await threads.reorder(b.id, 'down');
+		expect(await titles()).toEqual(['A', 'B']);
 	});
 
 	it('moves a Thread under another parent, or to the top level', async () => {
