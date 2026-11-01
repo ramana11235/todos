@@ -1,0 +1,36 @@
+// The hosted Instance: the API as a Worker on D1, with the built web app
+// served beside it. Copy this file to wrangler.jsonc, which git ignores, and
+// fill in your own domain, Access team, Access app and D1 database. The tests
+// read this file as it is, because they only need a local D1.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "todos",
+	"main": "src/worker.ts",
+	"compatibility_date": "2026-10-19",
+	// The core uses node:crypto for ids.
+	"compatibility_flags": ["nodejs_compat"],
+	// The custom domain, behind Access, is the only way in, so the workers.dev
+	// and preview addresses, which Access does not cover, stay off.
+	"workers_dev": false,
+	"preview_urls": false,
+	"routes": [{"pattern": "todos.example.com", "custom_domain": true}],
+	// The Access team and app whose tokens the Worker accepts. Neither is a
+	// secret: they say who signs the tokens, not how.
+	"vars": {
+		"ACCESS_TEAM": "https://your-team.cloudflareaccess.com",
+		"ACCESS_AUD": "your-access-app-audience-tag"
+	},
+	"assets": {
+		"directory": "dist/web",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": ["/api/*"]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "todos",
+			"database_id": "your-d1-database-id",
+			"migrations_dir": "migrations"
+		}
+	]
+}

@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./shadcn.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --font-sans: 'Geist Variable', sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* The todos terminal look: dark navy and the blues of Home in the terminal.
+   todos is always dark, so there is no light set. */
+:root {
+    color-scheme: dark;
+    /* Everything is sized in rem, so this one value sets the size of the
+       whole page, as the browser's zoom would. */
+    font-size: 100%;
+    --radius: 0.25rem;
+    --background: oklch(0.17 0.015 250);
+    --foreground: oklch(0.93 0.01 240);
+    --card: oklch(0.2 0.02 250);
+    --card-foreground: oklch(0.93 0.01 240);
+    --popover: oklch(0.2 0.02 250);
+    --popover-foreground: oklch(0.93 0.01 240);
+    --primary: oklch(0.85 0.09 230);
+    --primary-foreground: oklch(0.17 0.015 250);
+    --secondary: oklch(0.24 0.02 250);
+    --secondary-foreground: oklch(0.93 0.01 240);
+    --muted: oklch(0.24 0.02 250);
+    --muted-foreground: oklch(0.62 0.02 245);
+    --accent: oklch(0.26 0.03 245);
+    --accent-foreground: oklch(0.93 0.01 240);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(0.83 0.09 230 / 14%);
+    --input: oklch(0.83 0.09 230 / 20%);
+    --ring: oklch(0.85 0.09 230);
+    --chart-1: oklch(0.85 0.09 230);
+    --chart-2: oklch(0.7 0.11 240);
+    --chart-3: oklch(0.55 0.03 245);
+    --chart-4: oklch(0.45 0.03 245);
+    --chart-5: oklch(0.35 0.03 245);
+    --sidebar: oklch(0.15 0.015 250);
+    --sidebar-foreground: oklch(0.93 0.01 240);
+    --sidebar-primary: oklch(0.85 0.09 230);
+    --sidebar-primary-foreground: oklch(0.17 0.015 250);
+    --sidebar-accent: oklch(0.25 0.03 245);
+    --sidebar-accent-foreground: oklch(0.93 0.01 240);
+    --sidebar-border: oklch(0.83 0.09 230 / 12%);
+    --sidebar-ring: oklch(0.85 0.09 230);
+    --icon-bright: oklch(0.85 0.09 230);
+    --icon-mid: oklch(0.7 0.11 240);
+    --icon-faint: oklch(0.55 0.03 245);
+    --deadline: oklch(0.78 0.12 50);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* The shimmer Home uses on a Thread whose Session is working. */
+.shimmer {
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 40%, oklch(0.97 0.03 230) 50%, var(--primary) 60%, var(--primary) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3.5s linear infinite;
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .shimmer { animation: none; } }
+
+/* Formatted Markdown, sized to sit with the rest of the details. */
+.md > * + * { margin-top: 0.5rem; }
+.md h1, .md h2, .md h3 { font-weight: 600; color: var(--foreground); }
+.md h1 { font-size: 1.125rem; } .md h2 { font-size: 1rem; } .md h3 { font-size: 0.9375rem; }
+.md ul { list-style: disc; padding-left: 1.25rem; }
+.md ol { list-style: decimal; padding-left: 1.25rem; }
+.md li:has(> input[type=checkbox]) { list-style: none; margin-left: -1.25rem; }
+.md li > input[type=checkbox] { margin-right: 0.4rem; accent-color: var(--icon-bright); }
+.md a { color: var(--icon-bright); text-decoration: underline; text-underline-offset: 2px; }
+.md code { font-family: var(--font-mono, monospace); font-size: 0.85em; background: var(--muted); padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
+.md pre { background: var(--muted); padding: 0.6rem 0.8rem; border-radius: 0.4rem; overflow-x: auto; }
+.md pre code { background: none; padding: 0; }
+.md blockquote { border-left: 2px solid var(--border); padding-left: 0.75rem; color: var(--muted-foreground); }
+.md table { border-collapse: collapse; }
+.md th, .md td { border: 1px solid var(--border); padding: 0.2rem 0.6rem; text-align: left; }
+.md strong { color: var(--foreground); font-weight: 600; }

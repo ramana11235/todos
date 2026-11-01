@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<!-- The todos mark: a ticked box in the app's blue on its navy. It sits in
+	the middle 60% so phones can crop the icon to any shape. -->
+	<rect width="512" height="512" fill="#0d1420" />
+	<rect x="146" y="146" width="220" height="220" rx="48" fill="none" stroke="#95d3f0" stroke-width="26" />
+	<path d="M198 260 L240 302 L316 214" fill="none" stroke="#95d3f0" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

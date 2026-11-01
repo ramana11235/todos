@@ -1,0 +1,34 @@
+import type {Area, Project} from '../core/project.js';
+import type {Task} from '../core/task.js';
+import type {Page} from '../core/thoughts.js';
+import type {Prompt, Thread} from '../core/thread.js';
+
+// Where Threads and Tasks are kept. Every method is async so that D1 can stand in for
+// the local SQLite file in the cloud without changes elsewhere.
+export interface Storage {
+	listThreads(): Promise<Thread[]>;
+	getThread(id: string): Promise<Thread | undefined>;
+	saveThread(thread: Thread): Promise<void>;
+	// Writes only the given fields, so changes to different fields of one
+	// Thread made at the same moment all land.
+	updateThread(id: string, changes: Partial<Thread>): Promise<void>;
+	listTasks(): Promise<Task[]>;
+	getTask(id: string): Promise<Task | undefined>;
+	saveTask(task: Task): Promise<void>;
+	// Only for a Task turned into a Thread, which then holds all it had.
+	deleteTask(id: string): Promise<void>;
+	// Prompts waiting to be delivered, oldest first.
+	listPrompts(): Promise<Prompt[]>;
+	savePrompt(prompt: Prompt): Promise<void>;
+	deletePrompt(id: string): Promise<void>;
+	listAreas(): Promise<Area[]>;
+	saveArea(area: Area): Promise<void>;
+	listProjects(): Promise<Project[]>;
+	saveProject(project: Project): Promise<void>;
+	// Goes up with every change to a Thread, a Task, a project or an area.
+	changeNumber(): Promise<number>;
+	getThoughts(): Promise<Page>;
+	// Saves only if the page is still at `version`, and says whether it did.
+	saveThoughts(text: string, version: number): Promise<boolean>;
+	close(): void;
+}
