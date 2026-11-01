@@ -15,6 +15,9 @@ export interface Storage {
 	listTasks(): Promise<Task[]>;
 	getTask(id: string): Promise<Task | undefined>;
 	saveTask(task: Task): Promise<void>;
+	// Gives each Task its place in `ids` as its position, from 0, in one
+	// query, so a long list fits the hosted Instance's queries per request.
+	renumberTasks(ids: string[]): Promise<void>;
 	// Only for a Task turned into a Thread, which then holds all it had.
 	deleteTask(id: string): Promise<void>;
 	// Prompts waiting to be delivered, oldest first.

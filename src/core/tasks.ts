@@ -90,12 +90,11 @@ export class Tasks {
 		if (after) {
 			const before = await this.get(after);
 			const group = await this.groupOf(before);
-			const next = group[group.findIndex(t => t.id === before.id) + 1];
 			Object.assign(task, {
 				when: before.when,
 				threadId: before.threadId,
 				belongs: before.belongs,
-				position: next ? (before.position + next.position) / 2 : before.position + 1,
+				position: await this.between(group, group.findIndex(t => t.id === before.id) + 1, before.position + 1),
 			});
 		} else if (threadId && !(await this.storage.getThread(threadId))) {
 			throw new ThreadError('not_found', `No Thread ${threadId}`);
@@ -198,17 +197,27 @@ export class Tasks {
 		await this.storage.saveTask({...other, position: task.position});
 	}
 
-	// Only one Task is written, so it goes between its neighbours rather than
-	// renumbering the group.
+	// Usually only one Task is written, so it goes between its neighbours
+	// rather than renumbering the group.
 	private async positionAt(task: Task, index: number): Promise<number> {
 		if (!Number.isInteger(index) || index < 0) throw new ThreadError('invalid', 'A place in a list is a whole number from 0');
 		if (task.ended !== 'not_ended') throw new ThreadError('invalid', 'A done or dropped Task has no place in a list');
 		if (listOf(task, this.today()) === 'upcoming') throw new ThreadError('invalid', 'Upcoming is in date order, so a Task cannot be placed there');
 		const group = (await this.groupOf(task)).filter(t => t.id !== task.id);
-		const at = Math.min(index, group.length);
+		return this.between(group, Math.min(index, group.length), task.position);
+	}
+
+	// The position for a Task going in at `at` in `group`, which is in order.
+	// Halving a gap runs out after about 50 Tasks put in the same place, when
+	// halfway comes out equal to a neighbour, so the group is then numbered
+	// again from 0 in its order and the Task goes between two whole numbers.
+	private async between(group: Task[], at: number, alone: number): Promise<number> {
 		const [before, after] = [group[at - 1], group[at]];
-		if (before && after) return (before.position + after.position) / 2;
-		return after ? after.position - 1 : before ? before.position + 1 : task.position;
+		if (!before || !after) return after ? after.position - 1 : before ? before.position + 1 : alone;
+		const half = (before.position + after.position) / 2;
+		if (half !== before.position && half !== after.position) return half;
+		await this.storage.renumberTasks(group.map(task => task.id));
+		return at - 0.5;
 	}
 
 	// The open Tasks in the same list and under the same Thread, in order.

@@ -105,6 +105,11 @@ export abstract class SqlStorage implements Storage {
 		);
 	}
 
+	async renumberTasks(ids: string[]): Promise<void> {
+		const list = JSON.stringify(ids);
+		await this.db.run('UPDATE tasks SET position = (SELECT key FROM json_each(?) WHERE value = tasks.id) WHERE id IN (SELECT value FROM json_each(?))', list, list);
+	}
+
 	async listPrompts(): Promise<Prompt[]> {
 		const rows = await this.db.all<{id: string; thread_id: string; text: string | null; created_at: string}>('SELECT * FROM prompts ORDER BY created_at, rowid');
 		return rows.map(row => ({id: row.id, threadId: row.thread_id, text: row.text, createdAt: row.created_at}));

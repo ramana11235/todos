@@ -121,6 +121,22 @@ describe('placing a Task in its list', () => {
 		expect(await shown('today')).toEqual(['A', 'Between', 'B']);
 	});
 
+	// Halving a gap runs out after about 50 Tasks, so the list is numbered
+	// again from 0 when it does.
+	it('keeps 100 Tasks added straight after the same Task, or at the same place, in the order they went in', async () => {
+		// Away from 0, where a number has fewer places to halve into.
+		await tasks.add({title: 'Elsewhere'});
+		const first = await tasks.add({title: 'First', when: {kind: 'today'}});
+		const titles = Array.from({length: 100}, (_, n) => `T${n}`);
+		for (const title of titles) await tasks.add({title, after: first.id});
+		expect(await shown('today')).toEqual(['First', ...titles.toReversed()]);
+		const second = await tasks.add({title: 'Second', when: {kind: 'anytime'}});
+		await tasks.add({title: 'Last', when: {kind: 'anytime'}});
+		for (const title of titles) await tasks.add({title, when: {kind: 'anytime'}, index: 1});
+		expect((await shown('anytime')).slice(1, -1)).toEqual(titles.toReversed());
+		expect((await shown('anytime'))[0]).toBe(second.title);
+	});
+
 	it('refuses a place in Upcoming or for an ended Task, changing nothing', async () => {
 		const later = await dated('Renew the passport', '2026-12-01');
 		await expect(tasks.edit(later.id, {index: 0})).rejects.toThrow('Upcoming is in date order');
