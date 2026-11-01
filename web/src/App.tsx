@@ -656,6 +656,20 @@ export function App() {
 		document.querySelector(`[data-task="${next}"]`)?.scrollIntoView({block: 'nearest'});
 	};
 
+	// A tap or click anywhere outside the open Task closes it, which is the
+	// only way to close it on the phone. Its pickers, menus and dialogs sit
+	// outside it in the page, so they do not count as outside.
+	useEffect(() => {
+		if (!openId) return;
+		const onDown = (e: PointerEvent) => {
+			const target = e.target as Element;
+			if (target.closest(`[data-task="${openId}"], [role=dialog], [role=menu], [role=listbox], [data-radix-popper-content-wrapper], [data-sonner-toaster]`)) return;
+			setOpenId(null);
+		};
+		document.addEventListener('pointerdown', onDown);
+		return () => document.removeEventListener('pointerdown', onDown);
+	}, [openId]);
+
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (e.altKey && e.code === 'KeyC') {
