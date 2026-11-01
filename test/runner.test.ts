@@ -80,7 +80,9 @@ describe('the Session runner', () => {
 		expect(starts).toEqual([{sessionId: result.claudeSessionId, resume: false}]);
 		expect(currentPane()).toBe(result.sessionPane);
 		expect(currentWindowName()).toBe('Build the MCP server');
-		expect(tmux.run(['display-message', '-p', '-t', result.sessionPane, '#{pane_current_path}'])).toContain('todos-runner-');
+		// The start path is the folder todos told tmux to use. The current path
+		// can still be the tmux server's folder until the process has changed folder.
+		expect(tmux.run(['display-message', '-p', '-t', result.sessionPane, '#{pane_start_path}'])).toContain('todos-runner-');
 	});
 
 	it('splits a new pane in the Thread\'s Directory with prefix then % or "', () => {
@@ -93,7 +95,7 @@ describe('the Session runner', () => {
 			const commandPath = join(dir, `key-${Math.random()}.conf`);
 			writeFileSync(commandPath, bound);
 			tmux.run(['source-file', commandPath]);
-			expect(tmux.run(['display-message', '-p', '-t', 'todos', '#{pane_current_path}'])).toContain(directory.split('/').pop());
+			expect(tmux.run(['display-message', '-p', '-t', 'todos', '#{pane_start_path}'])).toContain(directory.split('/').pop());
 		}
 	});
 
