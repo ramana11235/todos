@@ -59,7 +59,9 @@ export const dayOf = (date: Date): string =>
 // Whether a value is a real day such as 2026-10-23.
 export const isDay = (value: unknown): value is string => typeof value === 'string' && dayOf(new Date(`${value}T12:00`)) === value;
 
-export type TaskRow = {kind: 'belonging'; belonging: Belonging} | {kind: 'day'; day: string} | {kind: 'header'; thread: Thread} | {kind: 'task'; task: Task};
+export type GroupRow = {kind: 'thread'; thread: Thread} | {kind: 'task'; task: Task};
+
+export type TaskRow = {kind: 'belonging'; belonging: Belonging} | {kind: 'day'; day: string} | GroupRow;
 
 // The rows of one list: Tasks that belong nowhere first, then a heading for
 // each project or area in `order` with its Tasks. Within each, Tasks with no
@@ -72,20 +74,27 @@ export function listRows(tasks: Task[], threads: Thread[], list: List, today: st
 	if (list === 'upcoming') {
 		return [...new Set(inList.map(dayIn))].sort().flatMap((day): TaskRow[] => [
 			{kind: 'day', day},
-			...byThread(inList.filter(task => dayIn(task) === day), threads, today),
+			...groupedByThread(inList.filter(task => dayIn(task) === day), threads, today),
 		]);
 	}
 	return groupedByBelonging(inList, task => taskBelongs(task, threads), order).flatMap(({heading, items}): TaskRow[] => [
 		...(heading ? [{kind: 'belonging' as const, belonging: heading}] : []),
-		...byThread(items, threads, today),
+		...groupedByThread(items, threads, today),
 	]);
 }
 
-function byThread(inList: Task[], threads: Thread[], today: string): TaskRow[] {
-	const rows: TaskRow[] = inList.filter(task => !task.threadId).map(task => ({kind: 'task', task}));
+// A list's Tasks under their Threads, as the terminal task panel and the
+// web app both show them: those with no Thread first, then a group under
+// each Thread's title in tree order. Tasks keep the order they come in. A
+// Task whose Thread is not known yet, such as before the Threads have
+// loaded, shows with no Thread rather than vanishing. A Thread in `also`
+// gets its heading even with no Tasks, as Someday Threads do in Someday.
+export function groupedByThread(tasks: Task[], threads: Thread[], today: string, also: Thread[] = []): GroupRow[] {
+	const known = new Set(threads.map(thread => thread.id));
+	const rows: GroupRow[] = tasks.filter(task => !task.threadId || !known.has(task.threadId)).map(task => ({kind: 'task', task}));
 	for (const {thread} of treeRows(threads, {view: 'all', today})) {
-		const group = inList.filter(task => task.threadId === thread.id);
-		if (group.length) rows.push({kind: 'header', thread}, ...group.map(task => ({kind: 'task' as const, task})));
+		const group = tasks.filter(task => task.threadId === thread.id);
+		if (group.length || also.includes(thread)) rows.push({kind: 'thread', thread}, ...group.map(task => ({kind: 'task' as const, task})));
 	}
 	return rows;
 }

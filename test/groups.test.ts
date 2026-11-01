@@ -1,7 +1,8 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
-import {groupedByThread, upcomingRows} from '../web/src/groups.js';
+import {groupedByThread} from '../src/core/task.js';
+import {upcomingRows} from '../web/src/groups.js';
 import {makeStorage} from './support.js';
 
 let tasks: Tasks;
@@ -25,7 +26,7 @@ describe("grouping a list's Tasks under their Threads in the web app", () => {
 		await tasks.add({title: 'Buy milk'});
 		await tasks.add({title: 'Ring the pub', threadId: venue.id});
 		await tasks.add({title: 'Order a cake', threadId: party.id});
-		expect(shown(groupedByThread(await tasks.list(), await threads.list()))).toEqual([
+		expect(shown(groupedByThread(await tasks.list(), await threads.list(), '2026-11-01'))).toEqual([
 			'Buy milk',
 			'-- Plan a party --',
 			'Order a cake',
@@ -44,7 +45,7 @@ describe("grouping a list's Tasks under their Threads in the web app", () => {
 		await tasks.add({title: 'Find a course', when: {kind: 'someday'}, threadId: sail.id});
 		const all = await threads.list();
 		const also = all.filter(thread => [writing.id, calm.id, sail.id].includes(thread.id));
-		expect(shown(groupedByThread(await tasks.list(), all, also))).toEqual([
+		expect(shown(groupedByThread(await tasks.list(), all, '2026-11-01', also))).toEqual([
 			'Pick up the cake',
 			'-- Writing --',
 			'-- Write on calm software --',
@@ -56,7 +57,7 @@ describe("grouping a list's Tasks under their Threads in the web app", () => {
 	it('shows a Task with no Thread when its Thread is not known yet', async () => {
 		const boiler = await threads.create({title: 'Fix the boiler'});
 		await tasks.add({title: 'Ring the engineer', threadId: boiler.id});
-		expect(shown(groupedByThread(await tasks.list(), []))).toEqual(['Ring the engineer']);
+		expect(shown(groupedByThread(await tasks.list(), [], '2026-11-01'))).toEqual(['Ring the engineer']);
 	});
 });
 

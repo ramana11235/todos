@@ -172,7 +172,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 	rows.forEach((row, i) => {
 		// A heading straight under a day's heading needs no gap, since the day
 		// already sets the group apart.
-		const key = row.kind === 'belonging' ? `b-${row.belonging.path.join('/')}` : row.kind === 'day' ? `d-${row.day}` : row.kind === 'header' ? `h-${row.thread.id}` : row.task.id;
+		const key = row.kind === 'belonging' ? `b-${row.belonging.path.join('/')}` : row.kind === 'day' ? `d-${row.day}` : row.kind === 'thread' ? `h-${row.thread.id}` : row.task.id;
 		drawn.push(<RowView key={key} row={row} today={today} first={i === 0 || rows[i - 1]!.kind === 'day'}
 			selected={row.kind === 'task' && row.task.id === selected?.id} mode={mode} query={mode.kind === 'search' ? mode.query : query}
 			onRename={title => {
@@ -257,7 +257,7 @@ function RowView({row, today, first, selected, mode, query, onRename, onRenameCh
 }) {
 	if (row.kind === 'belonging') return <BelongingHeading belonging={row.belonging} first={first} />;
 	if (row.kind === 'day') return <DayHeading day={row.day} today={today} first={first} />;
-	if (row.kind === 'header') return <Header title={row.thread.title} first={first} />;
+	if (row.kind === 'thread') return <Header title={row.thread.title} first={first} />;
 	const {task} = row;
 	const done = task.ended === 'done';
 	const renaming = selected && mode.kind === 'rename';

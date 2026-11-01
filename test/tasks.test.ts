@@ -28,7 +28,7 @@ const shown = async (list: Parameters<typeof listRows>[2]) => {
 	return listRows(await tasks.list(), await threads.list(), list, today, order).map(row =>
 		row.kind === 'belonging' ? `== ${row.belonging.path.join(' › ')}${row.belonging.ended === 'not_ended' ? '' : ` (${row.belonging.ended})`} ==`
 		: row.kind === 'day' ? `## ${row.day} ##`
-		: row.kind === 'header' ? `-- ${row.thread.title} --` : row.task.title,
+		: row.kind === 'thread' ? `-- ${row.thread.title} --` : row.task.title,
 	);
 };
 
@@ -162,6 +162,12 @@ describe('laying out a list', () => {
 			'-- Build the web app --', 'Sketch the sidebar',
 			'-- Move house --', 'Pack the kitchen',
 		]);
+	});
+
+	it('shows a Task with no Thread when its Thread is not known yet, as the web app does', async () => {
+		const house = await threads.create({title: 'Move house'});
+		await tasks.add({title: 'Pack the kitchen', threadId: house.id});
+		expect(listRows(await tasks.list(), [], 'inbox', today, []).map(row => (row.kind === 'task' ? row.task.title : row.kind))).toEqual(['Pack the kitchen']);
 	});
 
 	it('puts Upcoming under a heading for each day, grouped by Thread within the day and not by project', async () => {

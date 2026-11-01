@@ -42,7 +42,7 @@ import {useIsMobile} from '@/hooks/use-mobile';
 import {ApiError, Client, type Seen} from '../../src/client/client';
 import {belongingOrder, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
-import {dayOf, listNames, listOf, lists, type List, type Place, type Task} from '../../src/core/task';
+import {dayOf, groupedByThread, listNames, listOf, lists, type List, type Place, type Task} from '../../src/core/task';
 import type {TaskEdit} from '../../src/core/tasks';
 import type {MyEdit} from '../../src/core/threads';
 import {isActive, shownMove, type Deadline, type Thread} from '../../src/core/thread';
@@ -52,7 +52,7 @@ import {NewTask, type Draft} from './NewTask';
 import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
-import {groupedByThread, upcomingRows} from './groups';
+import {upcomingRows} from './groups';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
@@ -256,7 +256,7 @@ export function App() {
 			const here = [...tasks.filter(t => !kept.has(t.id)), ...kept.values()].filter(t => sameBelongs(taskBelongs(t, threads), shown));
 			here.sort((a, b) => lists.indexOf(listOf(a, now)) - lists.indexOf(listOf(b, now)) || a.position - b.position);
 			const open = threads.filter(t => t.ended === 'not_ended' && t.parentId === null && sameBelongs(t.belongs, shown));
-			return groupedByThread(here, threads, open);
+			return groupedByThread(here, threads, now, open);
 		}
 		if (view === 'logbook') {
 			const shown = [...ended.filter(t => !kept.has(t.id)), ...kept.values()];
@@ -276,7 +276,7 @@ export function App() {
 			...(heading ? [{kind: 'belonging' as const, belonging: heading}] : []),
 			// Under a project or area a Thread's heading is a level below, so it
 			// loses its rule.
-			...groupedByThread(group.flatMap(i => (i.kind === 'task' ? [i.task] : [])), threads, group.flatMap(i => (i.kind === 'thread' ? [i.thread] : [])))
+			...groupedByThread(group.flatMap(i => (i.kind === 'task' ? [i.task] : [])), threads, now, group.flatMap(i => (i.kind === 'thread' ? [i.thread] : [])))
 				.map(row => (row.kind === 'thread' && heading ? {...row, nested: true} : row)),
 		]);
 	}, [tasks, ended, kept, view, now, threads, shown, order]);
