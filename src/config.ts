@@ -2,8 +2,9 @@ import {readFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 
-// Where this copy of todos keeps its data. Setting TODOS_HOME gives a fully
-// separate copy, which is how tests run and how a work copy stays apart.
+// Where this Instance keeps its data. Setting TODOS_HOME gives a fully
+// separate Instance, which is how tests run and how a work Instance stays
+// apart.
 export const todosHome = (): string => process.env.TODOS_HOME ?? join(homedir(), '.todos');
 
 export const databasePath = (): string => join(todosHome(), 'todos.db');

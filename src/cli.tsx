@@ -54,7 +54,7 @@ async function ensureApi(client: Client): Promise<void> {
 	const action = apiAction(health, {build: buildId(), home: todosHome()});
 	if (action === 'use') return;
 	if (action === 'refuse') {
-		throw new Error(`Another copy of todos, with its data in ${health!.home}, is running at ${apiUrl()}. Set TODOS_API_URL or TODOS_PORT to give this copy its own address.`);
+		throw new Error(`Another todos Instance, with its data in ${health!.home}, is running at ${apiUrl()}. Set TODOS_API_URL or TODOS_PORT to give this Instance its own address.`);
 	}
 	if (action === 'replace') await stopApi(client, health!.pid ?? listeningPid());
 	const log = openSync(join(todosHome(), 'server.log'), 'a');
@@ -80,7 +80,7 @@ function listeningPid(): number | null {
 }
 
 // Every TODOS_ setting, carried along so what todos starts talks to the same
-// copy of todos.
+// Instance.
 function todosEnv(): Record<string, string> {
 	const env: Record<string, string> = {};
 	for (const [key, value] of Object.entries(process.env)) if (key.startsWith('TODOS_') && value) env[key] = value;

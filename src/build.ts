@@ -41,8 +41,8 @@ export function onNewBuild(onNewBuild: () => void): void {
 }
 
 // What the launcher does with whatever API answers at its address: use it,
-// replace it with this build, or refuse because it serves another copy of
-// todos, whose API is not this copy's to stop. An API from before copies
+// replace it with this build, or refuse because it serves another Instance,
+// whose API is not this Instance's to stop. An API from before Instances
 // were told apart does not say its home.
 export function apiAction(health: ApiHealth | null, mine: {build: string; home: string}): 'start' | 'use' | 'replace' | 'refuse' {
 	if (!health) return 'start';
