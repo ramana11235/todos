@@ -17,6 +17,7 @@ import {ThreadPicker} from './ThreadPicker';
 import {Deadline, DeadlinePicker} from './Deadline';
 import {bareInput as bare, titleClass} from './TaskRow';
 import {today} from './days';
+import {ease, ms} from './motion';
 import {placeIcons, whenLabel, WhenPicker} from './When';
 
 
@@ -76,13 +77,30 @@ export function TaskDetail({
 				}
 			}}
 		>
-			<div className="flex items-center gap-3">
-				<Checkbox checked={task.ended === 'done'} onCheckedChange={onTick} aria-label="Done" />
-				<Input
+			<div className="flex items-start gap-3">
+				<Checkbox className="mt-1" checked={task.ended === 'done'} onCheckedChange={onTick} aria-label="Done" />
+				{/* The whole title, wrapped onto as many lines as it needs. It is
+				    still one line of text, so Enter finishes and a pasted line
+				    break becomes a space. */}
+				<Textarea
+					rows={1}
 					defaultValue={task.title}
-					className={cn(bare, titleClass)}
+					className={cn(bare, titleClass, 'min-h-0 resize-none')}
+					onInput={e => {
+						const el = e.currentTarget;
+						const before = el.offsetHeight;
+						if (el.value.includes('\n')) el.value = el.value.replace(/\s*\n\s*/g, ' ');
+						// A new line opens smoothly instead of jumping (docs/animation.md, "Nothing jumps").
+						const after = el.offsetHeight;
+						if (after !== before) el.animate([{height: `${before}px`}, {height: `${after}px`}], {duration: ms, easing: ease});
+					}}
 					onBlur={e => e.currentTarget.value.trim() && e.currentTarget.value.trim() !== task.title && onEdit({title: e.currentTarget.value.trim()})}
-					onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
+					onKeyDown={e => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							e.currentTarget.blur();
+						}
+					}}
 				/>
 			</div>
 			{editingNotes ? (
