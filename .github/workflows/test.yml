@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+      # The runner tests start real tmux servers, and the README asks for tmux 3.3 or later.
+      - run: sudo apt-get update && sudo apt-get install -y tmux && tmux -V
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
