@@ -126,6 +126,11 @@ function applied(task: Task, patch: TaskEdit): Task {
 	return next;
 }
 
+// A message offering Undo stays up for 10 seconds, against the library's
+// default of 4, so there is time to read it and reach the button on the phone.
+const undoToast = (message: string, onUndo: () => void) =>
+	toast(message, {duration: 10_000, action: {label: 'Undo', onClick: onUndo}});
+
 // The change that puts back what `patch` replaces. The API keeps no history,
 // so undoing sends this.
 function reverseOf(task: Task, patch: TaskEdit): TaskEdit {
@@ -346,7 +351,7 @@ export function App() {
 			for (const [id, patch] of mine) if (patch.ended !== undefined || k.has(id)) next.set(id, updated.get(id)!);
 			return next;
 		});
-		if (message) toast(message, {action: {label: 'Undo', onClick: undo}});
+		if (message) undoToast(message, undo);
 		void Promise.all(patches.map(([id, patch]) => client.editTask(id, patch))).then(refresh, refresh);
 	};
 
@@ -721,7 +726,7 @@ export function App() {
 	const finishEnding = (page: Page, how: 'done' | 'dropped') => {
 		setEnding(null);
 		endedAs(page, how);
-		toast(`${how === 'done' ? 'Marked' : 'Dropped'} "${titleOf(page)}"${how === 'done' ? ' Done' : ''}`, {action: {label: 'Undo', onClick: () => endedAs(page, 'not_ended')}});
+		undoToast(`${how === 'done' ? 'Marked' : 'Dropped'} "${titleOf(page)}"${how === 'done' ? ' Done' : ''}`, () => endedAs(page, 'not_ended'));
 	};
 	// Asks first when something inside is still open. Opening it again needs
 	// no asking.
