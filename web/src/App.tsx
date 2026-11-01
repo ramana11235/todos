@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {
 	closestCenter,
 	DndContext,
@@ -53,7 +53,7 @@ import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
 import {endedLast, upcomingRows} from './groups';
-import {nothingHandled, useMotion, type Handled} from './motion';
+import {ease, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
@@ -347,6 +347,55 @@ export function App() {
 	// and page is a view of its own, so switching between them moves nothing.
 	const body = useRef<HTMLElement>(null);
 	const handled = useRef<Handled>(nothingHandled());
+	// An open Task's card grows out of its row, and shrinks back into the row
+	// when closed, while the rest steps back. The rows below move with it, so
+	// nothing else glides. This runs before the glides, so it can say so.
+	const openShown = openId && rows.some(row => row.kind === 'task' && row.task.id === openId) ? openId : null;
+	const away = (id?: string) => stepBack(openShown !== null && id !== openShown);
+	const card = useRef<{id: string; copy: HTMLElement; rect: DOMRect; space: number} | null>(null);
+	const rowHeights = useRef(new Map<string, number>());
+	const rowOf = (id: string) => body.current?.querySelector<HTMLElement>(`[data-row="${id}"]`) ?? null;
+	// Notes the open card as it is, at its full height even while it grows,
+	// so closing can shrink it from there. A key or click can change the card
+	// without the page drawing again, so it is noted then too.
+	const noteCard = () => {
+		const open = openShown && rowOf(openShown);
+		if (!open || !openShown) return void (card.current = null);
+		const {marginTop, marginBottom} = getComputedStyle(open);
+		const {left, top, width} = open.getBoundingClientRect();
+		const height = open.scrollHeight + open.offsetHeight - open.clientHeight;
+		card.current = {id: openShown, copy: open.cloneNode(true) as HTMLElement, rect: new DOMRect(left, top, width, height), space: height + parseFloat(marginTop) + parseFloat(marginBottom)};
+	};
+	useEffect(() => {
+		window.addEventListener('keydown', noteCard, true);
+		window.addEventListener('pointerdown', noteCard, true);
+		return () => {
+			window.removeEventListener('keydown', noteCard, true);
+			window.removeEventListener('pointerdown', noteCard, true);
+		};
+	});
+	useLayoutEffect(() => {
+		const was = card.current;
+		noteCard();
+		if ((was?.id ?? null) !== openShown) {
+			handled.current.settled = true;
+			const row = was && rowOf(was.id);
+			if (was && row) {
+				const to = row.getBoundingClientRect();
+				const copy = pinned(was.copy, was.rect, 40);
+				void copy.animate([{top: `${was.rect.top}px`, height: `${was.rect.height}px`, opacity: 1}, {top: `${to.top}px`, height: `${to.height}px`, opacity: 0}], {duration: ms, easing: ease})
+					.finished.then(() => copy.remove());
+				row.animate([{marginBottom: `${was.space - to.height}px`}, {marginBottom: '0px'}], {duration: ms, easing: ease});
+			}
+			const from = openShown && rowHeights.current.get(openShown);
+			if (card.current && from) {
+				const grown = rowOf(card.current.id)!;
+				const {marginTop, marginBottom} = getComputedStyle(grown);
+				grown.animate([{height: `${from}px`, marginTop: '0px', marginBottom: '0px', overflow: 'hidden'}, {height: `${card.current.rect.height}px`, marginTop, marginBottom, overflow: 'hidden'}], {duration: ms, easing: ease});
+			}
+		}
+		rowHeights.current = new Map([...(body.current?.querySelectorAll<HTMLElement>('[data-task]') ?? [])].map(el => [el.dataset.task!, el.offsetHeight]));
+	});
 	useMotion(body, hash, view, handled);
 
 	// Shows the changes at once, then saves them. Ending a Task or opening it
@@ -786,10 +835,10 @@ export function App() {
 			}}>
 				<SidebarProvider>
 					<Sidebar escapeEndsDrag={escape.endsDrag}>
-						<SidebarHeader className="px-4 pt-5">
+						<SidebarHeader className="px-4 pt-5" style={away()}>
 							<span className="shimmer font-mono text-lg font-bold tracking-tight">todos</span>
 						</SidebarHeader>
-						<SidebarContent>
+						<SidebarContent style={away()}>
 							<SidebarGroup>
 								<SidebarMenu>
 									<ViewItem view="inbox" current={current} count={counts.inbox} onPick={setView} />
@@ -884,9 +933,9 @@ export function App() {
 								onClick={e => e.target === e.currentTarget && setSelected([])}
 							>
 								{shown.kind !== 'none' ? (
-									<PageTop page={shown} areas={areas} projects={projects} onOpen={openPage} onEditProject={editProject} onEditArea={editArea} onEnd={how => endPage(shown, how)} />
+									<div style={away()}><PageTop page={shown} areas={areas} projects={projects} onOpen={openPage} onEditProject={editProject} onEditArea={editArea} onEnd={how => endPage(shown, how)} /></div>
 								) : (
-									<h1 className="mb-6 flex items-center gap-3 font-heading text-2xl font-semibold tracking-tight">
+									<h1 style={away()} className="mb-6 flex items-center gap-3 font-heading text-2xl font-semibold tracking-tight">
 										<Icon className="size-[0.9em]" style={{color: colour}} />
 										{viewNames[view]}
 									</h1>
@@ -903,15 +952,16 @@ export function App() {
 										<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 											{rows.map(row =>
 												row.kind === 'header' ? (
-													<h2 key={`h-${row.label}`} data-row={`h-${row.label}`} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
+													<h2 key={`h-${row.label}`} data-row={`h-${row.label}`} style={away()} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
 														{row.label}
 													</h2>
 												) : row.kind === 'belonging' ? (
-													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} row={`b-${belongsKey(row.belonging.belongs)}`} belonging={row.belonging} onOpen={openPage} />
+													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} row={`b-${belongsKey(row.belonging.belongs)}`} style={away()} belonging={row.belonging} onOpen={openPage} />
 												) : row.kind === 'thread' ? (
 													<h2
 														key={`t-${row.thread.id}`}
 														data-row={`t-${row.thread.id}`}
+														style={away()}
 														className={cn(
 															'mb-1 text-sm font-semibold first:mt-0',
 															// Under a day the day's heading sets the group apart, so a Thread's
@@ -945,6 +995,7 @@ export function App() {
 														key={row.task.id}
 														task={row.task}
 														view={shown.kind !== 'none' ? 'page' : view}
+														away={away(row.task.id)}
 														dimmed={(view !== 'logbook' && row.task.ended !== 'not_ended') || (dragging.includes(row.task.id) && dragging[0] !== row.task.id)}
 														selected={chosen.includes(row.task.id)}
 														renaming={renaming === row.task.id}
@@ -967,6 +1018,7 @@ export function App() {
 						{!bar && view !== 'threads' && (
 							<Button
 								size="icon-lg"
+								style={away()}
 								className="fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] rounded-full shadow-lg"
 								onClick={() => (view === 'logbook' ? setCapturing(true) : setAdding(true))}
 								aria-label="New task"

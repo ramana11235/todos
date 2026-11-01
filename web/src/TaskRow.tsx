@@ -1,6 +1,7 @@
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {FileTextIcon, ListChecksIcon, XIcon} from 'lucide-react';
+import type {CSSProperties} from 'react';
 import {cn} from '@/lib/utils';
 import {Checkbox} from '@/components/ui/checkbox';
 import {Input} from '@/components/ui/input';
@@ -50,6 +51,7 @@ function TitleInput({value, onDone}: {value: string; onDone: (title: string | nu
 export function TaskRow({
 	task,
 	view,
+	away,
 	dimmed,
 	selected,
 	renaming,
@@ -62,6 +64,8 @@ export function TaskRow({
 }: {
 	task: Task;
 	view: string;
+	// How it steps back while another Task is open.
+	away: CSSProperties;
 	dimmed: boolean;
 	selected: boolean;
 	renaming: boolean;
@@ -80,7 +84,9 @@ export function TaskRow({
 	return (
 		<div
 			ref={setNodeRef}
-			style={sortable ? {transform: CSS.Translate.toString(transform), transition} : undefined}
+			// While dragged, the drag places it; otherwise it steps back as asked,
+			// keeping its own dimming when it does not.
+			style={sortable && transform ? {transform: CSS.Translate.toString(transform), transition} : {...away, opacity: away.opacity === 1 ? undefined : away.opacity}}
 			{...attributes}
 			{...listeners}
 			data-task={task.id}

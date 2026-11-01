@@ -1,6 +1,6 @@
 // Projects and areas in the web app: their entries in the sidebar, their
 // heading over the Tasks in a list, and the top of the page each opens.
-import {useState, type MouseEvent, type ReactNode} from 'react';
+import {useState, type CSSProperties, type MouseEvent, type ReactNode} from 'react';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {BoxIcon, CheckIcon, CircleIcon, FlagIcon, RotateCcwIcon} from 'lucide-react';
@@ -87,12 +87,12 @@ export function sortableOf(sortable: string): {kind: SortableKind; id: string} |
 
 // A heading over the Tasks of one project or area in a list, naming the
 // area before the project. It opens that page.
-export function BelongingHeading({belonging, row, onOpen}: {belonging: Belonging; row: string; onOpen: (page: Page) => void}) {
+export function BelongingHeading({belonging, row, style, onOpen}: {belonging: Belonging; row: string; style: CSSProperties; onOpen: (page: Page) => void}) {
 	const {belongs, path, ended} = belonging;
 	if (belongs.kind === 'none') return null;
 	const Icon = iconOf(belongs.kind);
 	return (
-		<h2 data-row={row} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
+		<h2 data-row={row} style={style} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
 			<button className="flex items-center gap-2 hover:text-(--icon-bright)" onClick={() => onOpen(belongs)}>
 				<Icon className="size-4" style={{color: colourOf(belongs.kind)}} />
 				{path.length > 1 && <span className="font-normal text-muted-foreground">{path[0]} ›</span>}
