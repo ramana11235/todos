@@ -252,9 +252,14 @@ describe('the MCP server', () => {
 		expect((await call('update_thread', {belongs_to: {kind: 'area', id: health}})).isError).toBe(true);
 		await call('add_task', {title: 'Book a class', belongs_to: {kind: 'area', id: health}});
 		expect((await call('find_tasks', {query: 'class'})).body[0]).toMatchObject({thread: null, belongsTo: {kind: 'area', id: health}});
+		const swim = (await call('create_project', {title: 'Learn to swim', area: health})).body.id;
+		const work = (await call('create_area', {title: 'Work'})).body.id;
+		await call('batch', {changes: [{tool: 'update_project', project: swim, position: 0}, {tool: 'update_area', area: work, position: 0}]});
+		expect((await call('find_projects')).body).toMatchObject({areas: [{title: 'Work'}, {title: 'Health'}], projects: [{title: 'Learn to swim'}, {title: 'Run a 10k'}]});
 		await call('update_project', {project: run, ended: 'done', area: null});
 		await call('update_area', {area: health, ended: 'dropped'});
-		expect((await call('find_projects')).body).toMatchObject({areas: [{ended: 'dropped'}], projects: [{ended: 'done', area: {kind: 'none'}}]});
+		expect((await call('find_projects', {query: 'Health'})).body).toMatchObject({areas: [{ended: 'dropped'}]});
+		expect((await call('find_projects', {query: '10k'})).body).toMatchObject({projects: [{ended: 'done', area: {kind: 'none'}}]});
 	});
 
 	it('finds, moves and ends Tasks on any Thread or none', async () => {

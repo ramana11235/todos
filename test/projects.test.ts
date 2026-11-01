@@ -48,6 +48,31 @@ describe('projects and areas', () => {
 		await expect(projects.editProject(run.id, {position: 'top' as never})).rejects.toThrow('position');
 	});
 
+	it('take a place among the projects of their area, or among the areas, 0 for first', async () => {
+		const health = await projects.createArea({title: 'Health'});
+		const work = await projects.createArea({title: 'Work'});
+		const home = await projects.createArea({title: 'Home'});
+		const run = await projects.createProject({title: 'Run a 10k', area: {kind: 'in', id: health.id}});
+		await projects.createProject({title: 'Loose'});
+		const swim = await projects.createProject({title: 'Learn to swim', area: {kind: 'in', id: health.id}});
+		const sleep = await projects.createProject({title: 'Sleep more', area: {kind: 'in', id: health.id}});
+		const order = async () => {
+			const sorted = (all: {title: string; position: number}[]) => [...all].sort((a, b) => a.position - b.position).map(one => one.title);
+			const all = await projects.listProjects();
+			return {areas: sorted(await projects.listAreas()), health: sorted(all.filter(p => p.area.kind === 'in' && p.area.id === health.id)), none: sorted(all.filter(p => p.area.kind === 'none'))};
+		};
+		await projects.editProject(sleep.id, {index: 0});
+		await projects.editArea(home.id, {index: 1});
+		expect(await order()).toEqual({areas: ['Health', 'Home', 'Work'], health: ['Sleep more', 'Run a 10k', 'Learn to swim'], none: ['Loose']});
+		// Moved to no area, the place is among the projects in no area.
+		await projects.editProject(swim.id, {area: {kind: 'none'}, index: 0});
+		await projects.editProject(run.id, {index: 9});
+		await projects.editArea(health.id, {index: 2});
+		expect(await order()).toEqual({areas: ['Home', 'Work', 'Health'], health: ['Sleep more', 'Run a 10k'], none: ['Learn to swim', 'Loose']});
+		await expect(projects.editProject(run.id, {index: -1})).rejects.toThrow('whole number');
+		await expect(projects.editArea(work.id, {index: 0.5})).rejects.toThrow('whole number');
+	});
+
 	it('reorder a top-level Thread among those in the same project or area, as Home groups them', async () => {
 		const health = await projects.createArea({title: 'Health'});
 		const a = await threads.create({title: 'A', belongs: {kind: 'area', id: health.id}});

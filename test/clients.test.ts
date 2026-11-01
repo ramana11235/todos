@@ -94,7 +94,8 @@ const areaEditFields = {
 	title: {input: 'title'},
 	notes: {input: 'notes'},
 	ended: {input: 'ended'},
-	position: {leftOut: 'The number the web app sets when I drag an area in the sidebar; placing one from a Session is issue 117'},
+	position: {leftOut: 'The number the web app sets when I drag an area in the sidebar; a Session places one with position, sent as index'},
+	index: {input: 'position'},
 } satisfies Record<keyof AreaEdit, Offered>;
 
 const newProjectFields = {
@@ -107,7 +108,8 @@ const newProjectFields = {
 const projectEditFields = {
 	...newProjectFields,
 	ended: {input: 'ended'},
-	position: {leftOut: 'The number the web app sets when I drag a project in the sidebar; placing one from a Session is issue 117'},
+	position: {leftOut: 'The number the web app sets when I drag a project in the sidebar; a Session places one with position, sent as index'},
+	index: {input: 'position'},
 } satisfies Record<keyof ProjectEdit, Offered>;
 
 // Each change, the tool that makes it with the inputs it needs, and its fields.

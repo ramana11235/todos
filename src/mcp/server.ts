@@ -173,6 +173,7 @@ const updateAreaInput = {
 	title: z.string().optional(),
 	notes: z.string().optional().describe('The whole notes, replacing the old ones.'),
 	ended: z.enum(['not_ended', 'dropped']).optional().describe('dropped only when the user tells you to; not_ended brings it back. An area is never done.'),
+	position: z.number().int().min(0).optional().describe('Where among the areas, as find_projects lists them, 0 for first.'),
 };
 
 const createProjectInput = {
@@ -189,6 +190,7 @@ const updateProjectInput = {
 	area: z.string().nullable().optional().describe('The id of the area it is in, or null for none.'),
 	deadline,
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('done or dropped only when the user tells you to; not_ended reopens it. Nothing inside it changes.'),
+	position: z.number().int().min(0).optional().describe('Where among the projects of its area, or of those in no area, as find_projects lists them, 0 for first.'),
 };
 
 // An area id as the API takes it.
@@ -426,16 +428,16 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			case 'create_area':
 				return {method: 'POST', path: '/api/areas', body: {title: change.title, notes: change.notes}};
 			case 'update_area': {
-				const {tool, area, ...fields} = change;
-				return {method: 'PATCH', path: `/api/areas/${area}`, body: fields};
+				const {tool, area, position, ...fields} = change;
+				return {method: 'PATCH', path: `/api/areas/${area}`, body: {...fields, index: position}};
 			}
 			case 'create_project': {
 				const {tool, area, ...fields} = change;
 				return {method: 'POST', path: '/api/projects', body: {...fields, area: inArea(area)}};
 			}
 			case 'update_project': {
-				const {tool, project, area, ...fields} = change;
-				return {method: 'PATCH', path: `/api/projects/${project}`, body: {...fields, area: inArea(area)}};
+				const {tool, project, area, position, ...fields} = change;
+				return {method: 'PATCH', path: `/api/projects/${project}`, body: {...fields, area: inArea(area), index: position}};
 			}
 		}
 	};
