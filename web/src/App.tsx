@@ -53,7 +53,7 @@ import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
 import {endedLast, upcomingRows} from './groups';
-import {ease, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
+import {ease, fly, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
@@ -152,7 +152,7 @@ function ViewItem({view, current, count, onPick}: {view: View; current: View | '
 	const {setNodeRef, isOver} = useDroppable({id: `list:${view}`, disabled: view === 'upcoming' || view === 'threads' || view === current});
 	const [Icon, colour] = icons[view];
 	return (
-		<SidebarMenuItem ref={setNodeRef}>
+		<SidebarMenuItem ref={setNodeRef} data-list={view}>
 			<SidebarMenuButton
 				isActive={current === view}
 				className={cn(isOver && 'ring-2 ring-primary')}
@@ -351,7 +351,7 @@ export function App() {
 	// when closed, while the rest steps back. The rows below move with it, so
 	// nothing else glides. This runs before the glides, so it can say so.
 	const openShown = openId && rows.some(row => row.kind === 'task' && row.task.id === openId) ? openId : null;
-	const away = (id?: string) => stepBack(openShown !== null && id !== openShown);
+	const away = (id?: string) => stepBack(capturing || (openShown !== null && id !== openShown));
 	const card = useRef<{id: string; copy: HTMLElement; rect: DOMRect; space: number} | null>(null);
 	const rowHeights = useRef(new Map<string, number>());
 	const rowOf = (id: string) => body.current?.querySelector<HTMLElement>(`[data-row="${id}"]`) ?? null;
@@ -396,6 +396,9 @@ export function App() {
 		}
 		rowHeights.current = new Map([...(body.current?.querySelectorAll<HTMLElement>('[data-task]') ?? [])].map(el => [el.dataset.task!, el.offsetHeight]));
 	});
+	// A captured line waiting for its Task's row to be drawn, as capture says.
+	const landing = useRef<(() => boolean) | null>(null);
+	useLayoutEffect(() => void landing.current?.());
 	useMotion(body, hash, view, handled);
 
 	// Shows the changes at once, then saves them. Ending a Task or opening it
@@ -448,11 +451,27 @@ export function App() {
 		edit(open, {ended: 'dropped'}, `Dropped ${count(open.length)}`);
 	};
 
+	// Where a list is in the sidebar, while the sidebar is on screen.
+	const listInSidebar = (list: View) => {
+		const at = document.querySelector(`[data-list="${list}"]`)?.getBoundingClientRect();
+		return at && at.width > 0 && at.right > 0 ? at : null;
+	};
+
 	// Gives the Tasks a list or a Date, and says where they went when that
-	// takes them out of view.
-	const when = (some: string[], patch: TaskEdit) => {
+	// takes them out of view. Unless they were dragged there, those that
+	// leave travel into their list in the sidebar, and the gap closes. An
+	// ended Task stays in view until the view changes, so it does not leave.
+	const when = (some: string[], patch: TaskEdit, travel = true) => {
 		const first = known.current.get(some[0]!);
 		const to = first && listOf(applied(first, patch), now);
+		const into = travel && to && to !== view && shown.kind === 'none' ? listInSidebar(to) : null;
+		for (const id of into ? some.filter(id => !kept.has(id)) : []) {
+			const row = rowOf(id);
+			if (!row) continue;
+			const from = row.getBoundingClientRect();
+			handled.current.gone.add(id);
+			void fly(row, from, new DOMRect(into!.left, into!.top, Math.min(from.width, into!.width), into!.height), true);
+		}
 		edit(some, patch, to && to !== view ? `Moved ${count(some.length)} to ${listNames[to]}` : undefined);
 	};
 
@@ -523,6 +542,37 @@ export function App() {
 		} finally {
 			await refresh();
 		}
+	};
+
+	// A captured line travels into the Inbox: into its place once the Task is
+	// made when the Inbox is shown, and into the Inbox in the sidebar
+	// otherwise. With neither on screen it fades where it is.
+	const capture = async (title: string, copy: HTMLElement) => {
+		setCapturing(false);
+		const from = copy.getBoundingClientRect();
+		const go = (to: DOMRect, fade: boolean) => {
+			copy.remove();
+			return fly(copy, from, to, fade);
+		};
+		const here = view === 'inbox' && shown.kind === 'none';
+		if (!here) void go(listInSidebar('inbox') ?? from, true);
+		const task = await addTask({title, notes: '', when: {kind: 'inbox'}, deadline: {kind: 'none'}, threadId: null, belongs: {kind: 'none'}});
+		if (!here) return;
+		if (!task) return void go(from, true);
+		// The Task's row may be drawn before or after this, so whichever
+		// comes second lands the line.
+		landing.current = () => {
+			const row = rowOf(task.id);
+			if (!row) return false;
+			landing.current = null;
+			handled.current.arrived.add(task.id);
+			// The line becomes the row, so the row does not also fade in.
+			for (const fade of row.getAnimations()) fade.cancel();
+			const hidden = row.animate([{opacity: 0}, {opacity: 0}], {duration: 1, fill: 'forwards'});
+			void go(row.getBoundingClientRect(), false).then(() => hidden.cancel());
+			return true;
+		};
+		landing.current();
 	};
 
 	// A new Task starts where I am: in this list, or tomorrow in Upcoming,
@@ -709,7 +759,7 @@ export function App() {
 		if (target.startsWith('list:')) {
 			const to = target.slice('list:'.length) as View;
 			if (to === 'logbook') edit(moving, {ended: 'done'}, `Ticked off ${count(moving.length)}`);
-			else when(moving, {when: {kind: to as Place}});
+			else when(moving, {when: {kind: to as Place}}, false);
 			return;
 		}
 		if (!sortable || moving.includes(target) || !moving.every(id => sameGroup(id, target))) return;
@@ -1057,7 +1107,7 @@ export function App() {
 				onConfirm={() => ending && finishEnding(ending.page, ending.how)}
 			/>
 			<NewPage kind={naming} onDone={title => naming && void createPage(naming, title)} />
-			<Capture open={capturing} onOpenChange={setCapturing} onSave={title => void addTask({title, notes: '', when: {kind: 'inbox'}, deadline: {kind: 'none'}, threadId: null, belongs: {kind: 'none'}})} />
+			<Capture open={capturing} onClose={() => setCapturing(false)} onSave={(title, copy) => void capture(title, copy)} />
 			{/* Raised so a message never covers the bar at the bottom. */}
 			<Toaster position="bottom-center" offset={88} mobileOffset={{bottom: 'calc(88px + env(safe-area-inset-bottom))'}} />
 		</TooltipProvider>
