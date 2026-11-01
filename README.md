@@ -104,6 +104,33 @@ Make the Cloudflare API token an Account API token from the "Edit Cloudflare Wor
 
 Once the deploy has passed, run `git pull && npm install && npm run build` on each computer as usual.
 
+#### Use the hosted Instance from a computer
+
+A computer that uses the hosted Instance runs Home and its Sessions as usual, but runs no API and keeps no data of its own. Clone and build todos as in steps 1 and 2 of "Set up a local Instance", then:
+
+1. In Cloudflare Zero Trust, under Access, make a service token for this computer, and copy its Client ID and Client Secret. The secret is shown only once.
+
+2. In the Access application for the custom domain, add a policy whose action is Service Auth and which includes that service token, so requests that carry it get through.
+
+3. Write the settings file, `settings.json` in `~/.todos` (or in `TODOS_HOME` if you set it), with the custom domain's address and no slash at the end:
+
+   ```sh
+   mkdir -p ~/.todos
+   cat > ~/.todos/settings.json <<'EOF'
+   {
+     "instance": "hosted",
+     "url": "https://todos.example.com",
+     "clientId": "<Client ID>",
+     "clientSecret": "<Client Secret>"
+   }
+   EOF
+   chmod 600 ~/.todos/settings.json
+   ```
+
+   The file holds the token, so `chmod 600` makes it readable only by you. It lives outside the repo, so it is never committed.
+
+4. Run `todos`. It uses the hosted Instance and starts no API on this computer. The web app is at the custom domain, where Access asks you to sign in.
+
 Every computer that uses a hosted Instance needs its own `wrangler.jsonc`, copied from `wrangler.example.jsonc` and filled in the same way, because `todos backup` runs `wrangler d1 export` with it to back up the hosted data. A computer with only a local Instance needs none.
 
 ## How it works
