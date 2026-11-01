@@ -14,13 +14,14 @@ import {
 	type DragStartEvent,
 } from '@dnd-kit/core';
 import {SortableContext, verticalListSortingStrategy} from '@dnd-kit/sortable';
-import {ArchiveIcon, BookCheckIcon, CalendarDaysIcon, ChevronRightIcon, InboxIcon, LayersIcon, NetworkIcon, PlusIcon, StarIcon, type LucideIcon} from 'lucide-react';
+import {ArchiveIcon, BookCheckIcon, CalendarDaysIcon, ChevronRightIcon, InboxIcon, LayersIcon, NetworkIcon, PlusIcon, SearchIcon, StarIcon, type LucideIcon} from 'lucide-react';
 import {toast} from 'sonner';
 import {cn} from '@/lib/utils';
 import {Button} from '@/components/ui/button';
 import {Checkbox} from '@/components/ui/checkbox';
 import {ContextMenu, ContextMenuTrigger} from '@/components/ui/context-menu';
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
+import {Dialog, DialogContent, DialogTitle} from '@/components/ui/dialog';
 import {Toaster} from '@/components/ui/sonner';
 import {TooltipProvider} from '@/components/ui/tooltip';
 import {
@@ -59,6 +60,7 @@ import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
 import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
+import {TaskFinder} from './TaskFinder';
 
 // A phone on a slow connection can take a while to answer. Giving up early
 // would report a change as failed after it was saved, and trying again
@@ -185,6 +187,11 @@ export function App() {
 	const [anchor, setAnchor] = useState<string | null>(null);
 	const [renaming, setRenaming] = useState<string | null>(null);
 	const [openId, setOpenId] = useState<string | null>(null);
+	// / opens Find. On the Threads page / finds a Thread instead, with the
+	// page's own finder, which the phone's search button asks for by a count.
+	const [finding, setFinding] = useState(false);
+	const [threadFind, setThreadFind] = useState(0);
+	const startFind = () => (view === 'threads' ? setThreadFind(n => n + 1) : setFinding(true));
 	const [adding, setAdding] = useState(false);
 	const [capturing, setCapturing] = useState(false);
 	const [dragging, setDragging] = useState<string[]>([]);
@@ -658,6 +665,11 @@ export function App() {
 			}
 			if (capturing || (e.target as HTMLElement).closest('input, textarea, [role=dialog], [role=menu]')) return;
 			// The Threads page has keys of its own; only Tab moves between views.
+			if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && view !== 'threads') {
+				e.preventDefault();
+				setFinding(true);
+				return;
+			}
 			if (view === 'threads' && e.key !== 'Tab') return;
 			if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
 				e.preventDefault();
@@ -817,6 +829,22 @@ export function App() {
 
 	// The Task becomes the Thread and leaves the list at once. A message says
 	// so and offers to show the Thread.
+	// Picking a Task in Find goes to its list, which fades in as switching
+	// lists does, then opens the Task out of its row (docs/animation.md).
+	const findTask = (task: Task) => {
+		setFinding(false);
+		const to = listOf(task, today());
+		const moves = to !== view || shown.kind !== 'none';
+		if (moves) setView(to);
+		else setOpenId(null);
+		setSelected([task.id]);
+		setAnchor(task.id);
+		setTimeout(() => {
+			setOpenId(task.id);
+			document.querySelector(`[data-task="${task.id}"]`)?.scrollIntoView({block: 'center'});
+		}, moves ? ms : 0);
+	};
+
 	const turnIntoThread = async (task: Task, parentId: string | null) => {
 		setOpenId(null);
 		setTasks(ts => ts.filter(t => t.id !== task.id));
@@ -982,6 +1010,10 @@ export function App() {
 					<SidebarInset className={cn(view === 'threads' && 'h-svh')}>
 						<header className="flex items-center justify-between px-3 pt-3 md:hidden">
 							<SidebarTrigger />
+							<div className="flex items-center gap-1">
+							<Button variant="ghost" size="icon-sm" onClick={startFind} aria-label="Find">
+								<SearchIcon />
+							</Button>
 							{view !== 'logbook' && view !== 'threads' && (
 								<Button
 									variant="ghost"
@@ -995,9 +1027,10 @@ export function App() {
 									{picking ? 'Done' : 'Select'}
 								</Button>
 							)}
+							</div>
 						</header>
 						{view === 'threads' ? (
-							<ThreadsPage threads={threads} tasks={tasks} selectedId={threadId} onSelect={setThreadId} opened={opened} onOpened={setOpened} onTick={id => tick([id])} onEdit={editThread} onCreate={createThread} onMove={moveThread} onAddTask={draft => void addTask(draft)} order={order} />
+							<ThreadsPage threads={threads} tasks={tasks} selectedId={threadId} onSelect={setThreadId} opened={opened} onOpened={setOpened} onTick={id => tick([id])} onEdit={editThread} onCreate={createThread} onMove={moveThread} onAddTask={draft => void addTask(draft)} order={order} findRequest={threadFind} />
 						) : (
 							<main
 								ref={body}
@@ -1129,6 +1162,12 @@ export function App() {
 				onConfirm={() => ending && finishEnding(ending.page, ending.how)}
 			/>
 			<NewPage kind={naming} onDone={title => naming && void createPage(naming, title)} />
+			<Dialog open={finding} onOpenChange={setFinding}>
+				<DialogContent showCloseButton={false} className="top-[30%] p-2">
+					<DialogTitle className="sr-only">Find a Task</DialogTitle>
+					<TaskFinder tasks={tasks} threads={threads} order={order} onPick={findTask} />
+				</DialogContent>
+			</Dialog>
 			<Capture open={capturing} onClose={() => setCapturing(false)} onSave={(title, copy) => void capture(title, copy)} />
 			{/* Raised so a message never covers the bar at the bottom. */}
 			<Toaster position="bottom-center" offset={88} mobileOffset={{bottom: 'calc(88px + env(safe-area-inset-bottom))'}} />

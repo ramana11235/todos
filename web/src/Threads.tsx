@@ -410,7 +410,10 @@ export function ThreadsPage({
 	onMove,
 	onAddTask,
 	order,
+	findRequest,
 }: {
+	// Counts up each time the phone's search button asks for the finder.
+	findRequest: number;
 	onAddTask: (draft: Draft) => void;
 	// The projects and areas, in the sidebar's order.
 	order: Belonging[];
@@ -453,6 +456,9 @@ export function ThreadsPage({
 	const [adding, setAdding] = useState<{parentId: string | null; afterId: string | null; back: Back; from: AskedFrom} | null>(null);
 	// / opens the picker to jump to any Thread.
 	const [finding, setFinding] = useState(false);
+	useEffect(() => {
+		if (findRequest) setFinding(true);
+	}, [findRequest]);
 	const phone = useIsMobile();
 	const onePage = phone || opened;
 	const selected = threads.find(t => t.id === selectedId);
