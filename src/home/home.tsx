@@ -38,8 +38,9 @@ type Mode =
 	| {kind: 'directory'; id: string; value: string};
 
 // Starts the message shown while todos cannot be reached, so it can be told
-// apart from other messages and cleared once todos answers again.
-const unreachable = 'Cannot reach todos:';
+// apart from other messages and cleared once todos answers again. Home and the
+// task panel both use it.
+export const unreachable = 'Cannot reach todos:';
 
 
 

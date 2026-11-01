@@ -9,7 +9,7 @@ import {belongingOrder, belongsKey, type Belonging} from '../core/project.js';
 import {dayOf, listNames, listOf, listRows, lists, type List, type Task, type TaskRow} from '../core/task.js';
 import {descendantsOf, type Thread} from '../core/thread.js';
 import {dayName} from '../core/words.js';
-import {Highlighted, hintLines} from './home.js';
+import {Highlighted, hintLines, unreachable} from './home.js';
 import {colours} from './look.js';
 import {TextInput} from './text-input.js';
 
@@ -35,10 +35,6 @@ type Mode =
 	| {kind: 'add'; after: Task | null; title: string}
 	| {kind: 'rename'; task: Task; title: string}
 	| {kind: 'search'; query: string};
-
-// Starts the message shown while todos cannot be reached, so it can be told
-// apart from other messages and cleared once todos answers again.
-const unreachable = 'Cannot reach todos:';
 
 export function TaskPanel(deps: TaskPanelDeps) {
 	const {client, pollMs = 1500, now = () => new Date()} = deps;
