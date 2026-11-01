@@ -1,8 +1,8 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
-import {groupedByThread} from '../src/core/task.js';
-import {upcomingRows} from '../web/src/groups.js';
+import {groupedByThread, type Task} from '../src/core/task.js';
+import {endedLast, upcomingRows} from '../web/src/groups.js';
 import {makeStorage} from './support.js';
 
 let tasks: Tasks;
@@ -83,5 +83,31 @@ describe("Upcoming's rows in the web app", () => {
 		const passport = await threads.create({title: 'Renew passport', when: {kind: 'on_day', day: '2099-01-10'}});
 		await threads.edit(passport.id, {ended: 'done'});
 		expect(shown(upcomingRows([], await threads.list(), '2026-11-01'))).toEqual([]);
+	});
+
+	it('sinks an ended Task to the bottom of its own day, unless it stays in its place', async () => {
+		const pack = await tasks.add({title: 'Pack', when: {kind: 'on_day', day: '2099-01-03'}});
+		await tasks.add({title: 'Print the tickets', when: {kind: 'on_day', day: '2099-01-03'}});
+		await tasks.add({title: 'Go', when: {kind: 'on_day', day: '2099-01-04'}});
+		const list = (await tasks.list()).map(t => (t.id === pack.id ? {...t, ended: 'done' as const, endedAt: '2026-11-01T10:00:00Z'} : t));
+		expect(shown(upcomingRows(list, [], '2026-11-01'))).toEqual(['## 2099-01-03 ##', 'Print the tickets', 'Pack', '## 2099-01-04 ##', 'Go']);
+		expect(shown(upcomingRows(list, [], '2026-11-01', new Set([pack.id])))).toEqual(['## 2099-01-03 ##', 'Pack', 'Print the tickets', '## 2099-01-04 ##', 'Go']);
+	});
+});
+
+describe('where ended Tasks sit in a list in the web app', () => {
+	const task = (title: string, position: number, ended: Task['ended'] = 'not_ended', endedAt: string | null = null) =>
+		({id: title, title, position, ended, endedAt}) as Task;
+	const order = (list: Task[], stay: string[] = []) =>
+		[...list].sort((a, b) => endedLast(new Set(stay))(a, b) || a.position - b.position).map(t => t.title);
+
+	it('puts ended Tasks below the open ones, in the order they ended', () => {
+		const list = [task('Milk', 0), task('Bread', 1, 'done', '2026-11-01T10:00:02Z'), task('Eggs', 2), task('Jam', 3, 'dropped', '2026-11-01T10:00:01Z')];
+		expect(order(list)).toEqual(['Milk', 'Eggs', 'Jam', 'Bread']);
+	});
+
+	it('keeps an ended Task that stays in its place among the open ones', () => {
+		const list = [task('Milk', 0), task('Bread', 1, 'done', '2026-11-01T10:00:00Z'), task('Eggs', 2)];
+		expect(order(list, ['Bread'])).toEqual(['Milk', 'Bread', 'Eggs']);
 	});
 });

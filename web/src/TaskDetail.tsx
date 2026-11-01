@@ -66,6 +66,7 @@ export function TaskDetail({
 	return (
 		<div
 			data-task={task.id}
+			data-row={task.id}
 			className="my-2 flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-lg"
 			onKeyDown={e => {
 				if (e.key === 'Escape') {

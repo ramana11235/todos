@@ -87,12 +87,12 @@ export function sortableOf(sortable: string): {kind: SortableKind; id: string} |
 
 // A heading over the Tasks of one project or area in a list, naming the
 // area before the project. It opens that page.
-export function BelongingHeading({belonging, onOpen}: {belonging: Belonging; onOpen: (page: Page) => void}) {
+export function BelongingHeading({belonging, row, onOpen}: {belonging: Belonging; row: string; onOpen: (page: Page) => void}) {
 	const {belongs, path, ended} = belonging;
 	if (belongs.kind === 'none') return null;
 	const Icon = iconOf(belongs.kind);
 	return (
-		<h2 className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
+		<h2 data-row={row} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
 			<button className="flex items-center gap-2 hover:text-(--icon-bright)" onClick={() => onOpen(belongs)}>
 				<Icon className="size-4" style={{color: colourOf(belongs.kind)}} />
 				{path.length > 1 && <span className="font-normal text-muted-foreground">{path[0]} ›</span>}

@@ -50,7 +50,7 @@ type Seen = {top: number; rect: DOMRect; copy: HTMLElement; column: string; fade
 // and out as a whole. Switching to or from the ended view fades the new list
 // in and nothing travels. With no key or click in the last moment, the
 // change is a Session's, so it moves more slowly.
-export function useMotion(body: RefObject<HTMLDivElement | null>, look: string, view: string, handled: RefObject<Handled>) {
+export function useMotion(body: RefObject<HTMLElement | null>, look: string, view: string, handled: RefObject<Handled>) {
 	const seen = useRef<{look: string; view: string; rows: Map<string, Seen>; columns: Map<string, Seen>} | null>(null);
 	const lastInput = useRef(0);
 	useEffect(() => {

@@ -52,7 +52,8 @@ import {NewTask, type Draft} from './NewTask';
 import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
-import {upcomingRows} from './groups';
+import {endedLast, upcomingRows} from './groups';
+import {nothingHandled, useMotion, type Handled} from './motion';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
 import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
@@ -199,6 +200,9 @@ export function App() {
 	// Tasks ticked off, dropped or opened again here stay in view until the
 	// view changes, so a second click undoes it.
 	const [kept, setKept] = useState<Map<string, Task>>(new Map());
+	// Kept Tasks that have ended but keep their place for now, as endedLast
+	// says.
+	const [stay, setStay] = useState<ReadonlySet<string>>(new Set());
 	// Each entry puts back one change, the latest last.
 	const undoes = useRef<[string, TaskEdit][][]>([]);
 	// The Thread picked on the Threads page, kept while I visit a list.
@@ -261,7 +265,7 @@ export function App() {
 		// A page shows what is in it from every list, list by list.
 		if (shown.kind !== 'none') {
 			const here = [...tasks.filter(t => !kept.has(t.id)), ...kept.values()].filter(t => sameBelongs(taskBelongs(t, threads), shown));
-			here.sort((a, b) => lists.indexOf(listOf(a, now)) - lists.indexOf(listOf(b, now)) || a.position - b.position);
+			here.sort((a, b) => endedLast(stay)(a, b) || lists.indexOf(listOf(a, now)) - lists.indexOf(listOf(b, now)) || a.position - b.position);
 			const open = threads.filter(t => t.ended === 'not_ended' && t.parentId === null && sameBelongs(t.belongs, shown));
 			return groupedByThread(here, threads, now, open);
 		}
@@ -271,11 +275,11 @@ export function App() {
 			return withHeadings(shown, t => (t.endedAt ? dayName(dayOf(new Date(t.endedAt))) : ''));
 		}
 		const inList = [...tasks.filter(t => !kept.has(t.id) && listOf(t, now) === view), ...kept.values()];
-		if (view === 'upcoming') return upcomingRows(inList, threads, now).map(row => (row.kind === 'day' ? {kind: 'header', label: dayName(row.day)} : row));
+		if (view === 'upcoming') return upcomingRows(inList, threads, now, stay).map(row => (row.kind === 'day' ? {kind: 'header', label: dayName(row.day)} : row));
 		// Going into Someday is looking, so the Threads parked there show too.
 		const parked = view === 'someday' ? threads.filter(t => t.ended === 'not_ended' && t.when.kind === 'someday') : [];
 		const items: ({kind: 'task'; task: Task} | {kind: 'thread'; thread: Thread})[] = [
-			...inList.sort((a, b) => a.position - b.position).map(task => ({kind: 'task' as const, task})),
+			...inList.sort((a, b) => endedLast(stay)(a, b) || a.position - b.position).map(task => ({kind: 'task' as const, task})),
 			...parked.map(thread => ({kind: 'thread' as const, thread})),
 		];
 		const belongsOf = (item: (typeof items)[number]) => (item.kind === 'task' ? taskBelongs(item.task, threads) : threadBelongs(item.thread, threads));
@@ -286,7 +290,7 @@ export function App() {
 			...groupedByThread(group.flatMap(i => (i.kind === 'task' ? [i.task] : [])), threads, now, group.flatMap(i => (i.kind === 'thread' ? [i.thread] : [])))
 				.map(row => (row.kind === 'thread' && heading ? {...row, nested: true} : row)),
 		]);
-	}, [tasks, ended, kept, view, now, threads, shown, order]);
+	}, [tasks, ended, kept, stay, view, now, threads, shown, order]);
 	// Upcoming itself, not a page opened while it was the list.
 	const inUpcoming = view === 'upcoming' && shown.kind === 'none';
 	const shownTasks = rows.flatMap(r => (r.kind === 'task' ? [r.task] : []));
@@ -308,6 +312,7 @@ export function App() {
 		setOpenId(null);
 		setAdding(false);
 		setKept(new Map());
+		setStay(new Set());
 		setPicking(false);
 		setOpened(false);
 	};
@@ -338,6 +343,12 @@ export function App() {
 		return () => window.removeEventListener('popstate', onBack);
 	}, []);
 
+	// Rows that change place glide there, as on the Threads page. Each list
+	// and page is a view of its own, so switching between them moves nothing.
+	const body = useRef<HTMLElement>(null);
+	const handled = useRef<Handled>(nothingHandled());
+	useMotion(body, hash, view, handled);
+
 	// Shows the changes at once, then saves them. Ending a Task or opening it
 	// again keeps it in view, as it now is. A message offers Undo.
 	const change = (patches: [string, TaskEdit][], message?: string, undoable = true) => {
@@ -353,6 +364,13 @@ export function App() {
 			for (const [id, patch] of mine) if (patch.ended !== undefined || k.has(id)) next.set(id, updated.get(id)!);
 			return next;
 		});
+		// A Task I end greys at once and stays where it is for half a second,
+		// so I see it done, before it glides to the bottom.
+		const ending = view === 'logbook' ? [] : mine.flatMap(([id, patch]) => (patch.ended !== undefined && patch.ended !== 'not_ended' ? [id] : []));
+		if (ending.length) {
+			setStay(s => new Set([...s, ...ending]));
+			setTimeout(() => setStay(s => new Set([...s].filter(id => !ending.includes(id)))), 500);
+		}
 		if (message) undoToast(message, undo);
 		void Promise.all(patches.map(([id, patch]) => client.editTask(id, patch))).then(refresh, refresh);
 	};
@@ -646,6 +664,8 @@ export function App() {
 			return;
 		}
 		if (!sortable || moving.includes(target) || !moving.every(id => sameGroup(id, target))) return;
+		// The drag has already put every row where it goes.
+		handled.current.settled = true;
 		const down = ids.indexOf(target) > ids.indexOf(String(active.id));
 		const rest = ids.filter(id => !moving.includes(id));
 		reorder(moving, down ? (rest[rest.indexOf(target) + 1] ?? null) : target);
@@ -859,6 +879,7 @@ export function App() {
 							<ThreadsPage threads={threads} tasks={tasks} selectedId={threadId} onSelect={setThreadId} opened={opened} onOpened={setOpened} onTick={id => tick([id])} onEdit={editThread} onCreate={createThread} onMove={moveThread} onAddTask={draft => void addTask(draft)} order={order} />
 						) : (
 							<main
+								ref={body}
 								className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-4 pb-32 md:px-12 md:pt-14"
 								onClick={e => e.target === e.currentTarget && setSelected([])}
 							>
@@ -878,18 +899,19 @@ export function App() {
 								{/* The Logbook only opens Tasks again, so it has no menu or bar. On a
 								phone a long press drags, so there is no menu there either. */}
 								<ContextMenu disabled={view === 'logbook' || phone}>
-									<ContextMenuTrigger className="flex flex-col">
+									<ContextMenuTrigger data-column="list" className="flex flex-col">
 										<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 											{rows.map(row =>
 												row.kind === 'header' ? (
-													<h2 key={`h-${row.label}`} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
+													<h2 key={`h-${row.label}`} data-row={`h-${row.label}`} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
 														{row.label}
 													</h2>
 												) : row.kind === 'belonging' ? (
-													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} belonging={row.belonging} onOpen={openPage} />
+													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} row={`b-${belongsKey(row.belonging.belongs)}`} belonging={row.belonging} onOpen={openPage} />
 												) : row.kind === 'thread' ? (
 													<h2
 														key={`t-${row.thread.id}`}
+														data-row={`t-${row.thread.id}`}
 														className={cn(
 															'mb-1 text-sm font-semibold first:mt-0',
 															// Under a day the day's heading sets the group apart, so a Thread's

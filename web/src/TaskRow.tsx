@@ -84,6 +84,7 @@ export function TaskRow({
 			{...attributes}
 			{...listeners}
 			data-task={task.id}
+			data-row={task.id}
 			onClick={onSelect}
 			onDoubleClick={onOpen}
 			// Right-clicking a Task outside the selection acts on that Task alone.
