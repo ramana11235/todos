@@ -61,6 +61,12 @@ type Mode =
 // task panel both use it.
 export const unreachable = 'Cannot reach todos:';
 
+// By default Ink erases every line of the frame and writes them all again on
+// each render, so while a shimmer animates, a terminal that shows the erase
+// before the rewrite flickers across the whole screen. Incremental rendering
+// rewrites only the lines that changed.
+export const homeRenderOptions = {alternateScreen: true, exitOnCtrlC: false, incrementalRendering: true};
+
 
 
 // Where a new Thread goes: under a Thread, or at the top level in a project,

@@ -1,8 +1,11 @@
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
+import {Box, render as renderInk, Text} from 'ink';
 import {render} from 'ink-testing-library';
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {Client, Seen} from '../src/client/client.js';
 import {childrenOf, type Thread} from '../src/core/thread.js';
-import {Home, hintLines, restoreFocusAndSelection} from '../src/home/home.js';
+import {Home, hintLines, homeRenderOptions, restoreFocusAndSelection} from '../src/home/home.js';
 import {startApi} from './support.js';
 
 let client: Client;
@@ -332,5 +335,38 @@ describe('Home\'s focus and selection kept between runs', () => {
 		const threads = await client.threads();
 		expect(restoreFocusAndSelection({focusId: null, selectedId: 'project-1'}, threads, new Set(['project-1']))).toEqual({focusId: null, selectedId: 'project-1'});
 		expect(restoreFocusAndSelection({focusId: launch, selectedId: 'project-1'}, threads, new Set(['project-1']))).toEqual({focusId: launch, selectedId: launch});
+	});
+});
+
+describe('Home render options', () => {
+	it('rewrites only the changed line instead of erasing the whole screen', () => {
+		vi.useFakeTimers();
+		try {
+			const writes: string[] = [];
+			const stdout = Object.assign(new EventEmitter(), {
+				isTTY: true,
+				columns: 40,
+				rows: 5,
+				write: (chunk: string) => (writes.push(chunk), true),
+			}) as unknown as NodeJS.WriteStream;
+			const frame = (last: string) => (
+				<Box flexDirection="column" height={5}>
+					{['a', 'b', 'c', 'd', last].map(line => <Text key={line}>{line}</Text>)}
+				</Box>
+			);
+			const stdin = new PassThrough() as unknown as NodeJS.ReadStream;
+			const app = renderInk(frame('shimmer 1'), {...homeRenderOptions, stdout, stdin, patchConsole: false});
+			vi.advanceTimersByTime(100);
+			writes.length = 0;
+			app.rerender(frame('shimmer 2'));
+			vi.advanceTimersByTime(100);
+			const written = writes.join('');
+			expect(written).toContain('2');
+			// Erase Line, which the default rendering sends for every line of the frame.
+			expect(written).not.toContain('\x1b[2K');
+			app.unmount();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

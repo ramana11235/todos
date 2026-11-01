@@ -18,7 +18,7 @@ import {Thoughts} from './core/thoughts.js';
 import {Threads} from './core/threads.js';
 import type {List} from './core/task.js';
 import {Capture} from './home/capture.js';
-import {Home} from './home/home.js';
+import {Home, homeRenderOptions} from './home/home.js';
 import {TaskPanel} from './home/task-panel.js';
 import {colours} from './home/look.js';
 import {nvimConfig} from './home/thoughts.js';
@@ -189,7 +189,7 @@ function home(): void {
 			onSelect={id => tmux.tryRun(['set-option', '-w', '-t', homeWindow, '@todos_selected', id])}
 			shown={shown}
 		/>,
-		{alternateScreen: true, exitOnCtrlC: false},
+		homeRenderOptions,
 	);
 }
 
