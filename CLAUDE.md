@@ -26,6 +26,8 @@ One context: a single `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/a
 
 Every piece of work on todos is an issue first, and the issues are its backlog and its permanent record. They are GitHub Issues on this repo, and the queue of what comes next is the repo's GitHub Projects board (see `docs/agents/issue-tracker.md`). A todos Session also keeps its Thread true: the Thread says where the work stands, and the issue records it. A Thread can work through several issues or be one issue.
 
+The manager keeps the board up to date with `gh`, following the rules in the board's README. It adds each new issue with `gh project item-add 1 --owner @me --url <issue url>` and sets its Status and Lane with `gh project item-edit`, which takes the ids that `gh project item-list 1 --owner @me --format json` and `gh project field-list 1 --owner @me --format json` give. The Status on the board follows the issue's Status label, an issue moves to In progress when its build starts and to Done when it is closed, because the board does not move closed issues by itself. Moving a card within its column needs `gh api graphql` with the `updateProjectV2ItemPosition` mutation, which puts the card after a given card, or at the top when no card is given.
+
 ### Working in this repo
 
 - Keep throwaway UI versions in `.scratch/todos/prototypes/`, which is not part of the repo and stays on the laptop. The Ink ones run with `npx tsx` and need `/** @jsxRuntime automatic */` at the top because they sit outside `src`. Copying the real component and giving it a made-up client keeps the look exact.
