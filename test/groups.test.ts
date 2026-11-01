@@ -2,7 +2,7 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
 import {groupedByThread, type Task} from '../src/core/task.js';
-import {endedLast, upcomingRows} from '../web/src/groups.js';
+import {endedLast, leftElsewhere, upcomingRows} from '../web/src/groups.js';
 import {makeStorage} from './support.js';
 
 let tasks: Tasks;
@@ -109,5 +109,14 @@ describe('where ended Tasks sit in a list in the web app', () => {
 	it('keeps an ended Task that stays in its place among the open ones', () => {
 		const list = [task('Milk', 0), task('Bread', 1, 'done', '2026-11-01T10:00:00Z'), task('Eggs', 2)];
 		expect(order(list, ['Bread'])).toEqual(['Milk', 'Bread', 'Eggs']);
+	});
+});
+
+describe('Tasks ended elsewhere in the web app', () => {
+	const task = (id: string) => ({id}) as Task;
+
+	it('finds the Tasks on screen that are no longer open and were not changed here', () => {
+		const kept = new Map([['ticked here', task('ticked here')]]);
+		expect(leftElsewhere(['open', 'ticked here', 'ended by a Session'], [task('open')], kept)).toEqual(['ended by a Session']);
 	});
 });

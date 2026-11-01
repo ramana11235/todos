@@ -24,3 +24,10 @@ export const endedLast = (stay: ReadonlySet<string>) => (a: Task, b: Task) => {
 	const sunk = (t: Task) => t.ended !== 'not_ended' && !stay.has(t.id);
 	return Number(sunk(a)) - Number(sunk(b)) || (sunk(a) && sunk(b) ? (a.endedAt ?? '').localeCompare(b.endedAt ?? '') : 0);
 };
+
+// The Tasks on screen that are no longer open and were not changed here, so
+// a Session or another device ended them, or they are gone altogether.
+export const leftElsewhere = (onScreen: string[], open: Task[], kept: ReadonlyMap<string, Task>) => {
+	const still = new Set(open.map(t => t.id));
+	return onScreen.filter(id => !still.has(id) && !kept.has(id));
+};

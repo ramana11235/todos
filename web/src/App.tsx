@@ -52,7 +52,7 @@ import {NewTask, type Draft} from './NewTask';
 import {TaskDetail} from './TaskDetail';
 import {TaskRow, titleClass} from './TaskRow';
 import {moved} from './columns';
-import {endedLast, upcomingRows} from './groups';
+import {endedLast, leftElsewhere, upcomingRows} from './groups';
 import {ease, fly, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
@@ -217,6 +217,14 @@ export function App() {
 			const changes = await client.changes(seen.current);
 			if (changes.kind === 'same') return;
 			seen.current = {kind: 'number', number: changes.number};
+			// A Task on screen that a Session or another device ends greys
+			// where it is and stays there until the view changes.
+			const left = leftElsewhere(onScreen.current, changes.tasks, keptNow.current);
+			const endedThere = (await Promise.all(left.map(id => client.task(id).catch(() => null)))).filter((t): t is Task => t !== null && t.ended !== 'not_ended');
+			if (endedThere.length) {
+				setKept(k => new Map([...k, ...endedThere.map(t => [t.id, t] as const)]));
+				setStay(s => new Set([...s, ...endedThere.map(t => t.id)]));
+			}
 			setTasks(changes.tasks);
 			setThreads(changes.threads);
 			setProjects(changes.projects);
@@ -297,6 +305,12 @@ export function App() {
 	const ids = shownTasks.map(t => t.id);
 	// The selected Tasks still in view, in the order they are shown.
 	const chosen = ids.filter(id => selected.includes(id));
+	// What a poll compares with, as the page now shows it. The Logbook shows
+	// only ended Tasks, so nothing there can be ended elsewhere.
+	const onScreen = useRef<string[]>([]);
+	onScreen.current = view === 'logbook' ? [] : ids;
+	const keptNow = useRef(kept);
+	keptNow.current = kept;
 
 	const counts = useMemo(() => {
 		const c: Record<View, number> = {inbox: 0, today: 0, upcoming: 0, anytime: 0, someday: 0, logbook: 0, threads: 0};
@@ -400,6 +414,14 @@ export function App() {
 	const landing = useRef<(() => boolean) | null>(null);
 	useLayoutEffect(() => void landing.current?.());
 	useMotion(body, hash, view, handled);
+	// Switching to another list or page fades it in without travelling,
+	// because nothing moved.
+	const shownHash = useRef(hash);
+	useLayoutEffect(() => {
+		if (shownHash.current === hash) return;
+		shownHash.current = hash;
+		body.current?.animate([{opacity: 0}, {opacity: 1}], {duration: ms, easing: ease});
+	}, [hash]);
 
 	// Shows the changes at once, then saves them. Ending a Task or opening it
 	// again keeps it in view, as it now is. A message offers Undo.

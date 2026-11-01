@@ -20,7 +20,7 @@ How things move, such as their weight, speed and the way they settle, is the lan
 4. **A thing stays itself.** What I made or moved is never swapped for something else with a flicker: a new line becomes the selected Task, and an open Task shrinks back into its own row.
 5. **Plain motion only.** Things move, fade, blur and change size. Nothing glows, bounces, sweeps or ripples.
 
-A motion takes about 280ms and eases out, starting quickly and slowing as it settles. Something that travels far, such as a line rising from the bottom of the screen, takes about twice that. A change I did not make moves about two and a half times slower, so it never pulls the eye. A change counts as mine when I pressed a key or clicked in the 1.5 seconds before it is drawn, and any other change is taken to be one I did not make. Only the Threads page tells the two apart so far.
+A motion takes about 280ms and eases out, starting quickly and slowing as it settles. Something that travels far, such as a line rising from the bottom of the screen, takes about twice that. A change I did not make moves about two and a half times slower, so it never pulls the eye. A change counts as mine when I pressed a key or clicked in the 1.5 seconds before it is drawn, and any other change is taken to be one I did not make. The web app tells the two apart on the Threads page and in its lists of Tasks, and the TUI does not yet.
 
 ## Each action
 
