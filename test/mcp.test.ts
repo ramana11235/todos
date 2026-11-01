@@ -239,6 +239,19 @@ describe('the MCP server', () => {
 		expect(await client.prompts()).toEqual([]);
 	});
 
+	it('refuses a batch that turns more than four Tasks into Threads before changing anything', async () => {
+		const ids = [];
+		for (const n of [1, 2, 3, 4, 5]) ids.push((await call('add_task', {title: `Task ${n}`, checklist: [{title: 'Step'}]})).body.id);
+		const {isError, body} = await call('batch', {changes: [
+			{tool: 'update_thread', thread: sibling, title: 'Build Home'},
+			...ids.map(task => ({tool: 'turn_task_into_thread', task})),
+		]});
+		expect(isError).toBe(true);
+		expect(JSON.stringify(body)).toContain('A batch turns at most 4 Tasks into Threads, so nothing was changed');
+		expect((await client.thread(sibling)).title).toBe('Build the TUI');
+		expect((await client.tasks()).map(t => t.title)).toEqual(['Task 1', 'Task 2', 'Task 3', 'Task 4', 'Task 5']);
+	});
+
 	it('creates, finds and ends projects and areas, and puts Threads and Tasks in them', async () => {
 		const health = (await call('create_area', {title: 'Health'})).body.id;
 		const run = (await call('create_project', {title: 'Run a 10k', area: health})).body.id;

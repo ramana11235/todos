@@ -146,10 +146,8 @@ export class Tasks {
 	// Each checklist step becomes a Task linked to it in Anytime, ticked if
 	// the step was, and the Task is gone (CONTEXT.md). The Thread and its
 	// Tasks are saved before the Task goes, so a failure part way leaves the
-	// Task as it was rather than losing anything.
-	// shortcut: one query per step, so a checklist of more than about 40 steps
-	// could pass the hosted Instance's 50 queries a request; batch the writes
-	// if checklists ever get that long.
+	// Task as it was rather than losing anything. The steps are written in one
+	// query, so a long checklist costs no more queries than a short one.
 	async turnIntoThread(id: string, parentId: string | null, threads: Threads): Promise<Thread> {
 		const task = await this.get(id);
 		if (task.ended !== 'not_ended') throw new ThreadError('invalid', 'Only an open Task can be turned into a Thread');
@@ -164,23 +162,20 @@ export class Tasks {
 		});
 		const all = await this.storage.listTasks();
 		let position = all.length === 0 ? 0 : Math.max(...all.map(t => t.position)) + 1;
-		for (const step of task.checklist) {
-			const ended = step.done ? this.now().toISOString() : null;
-			await this.storage.saveTask({
-				id: randomUUID(),
-				title: step.title,
-				when: {kind: 'anytime'},
-				threadId: thread.id,
-				belongs: {kind: 'none'},
-				position: position++,
-				deadline: {kind: 'none'},
-				notes: '',
-				checklist: [],
-				ended: step.done ? 'done' : 'not_ended',
-				endedAt: ended,
-				createdAt: this.now().toISOString(),
-			});
-		}
+		await this.storage.saveTasks(task.checklist.map(step => ({
+			id: randomUUID(),
+			title: step.title,
+			when: {kind: 'anytime'},
+			threadId: thread.id,
+			belongs: {kind: 'none'},
+			position: position++,
+			deadline: {kind: 'none'},
+			notes: '',
+			checklist: [],
+			ended: step.done ? 'done' : 'not_ended',
+			endedAt: step.done ? this.now().toISOString() : null,
+			createdAt: this.now().toISOString(),
+		})));
 		await this.storage.deleteTask(task.id);
 		return thread;
 	}

@@ -20,6 +20,9 @@ export type BatchResult = {status: number; body: unknown};
 // The hosted Instance on Cloudflare's free plan may run only 50 D1 queries in
 // one request, and ten typical changes take 20 to 30 (docs/adr/0004).
 export const batchLimit = 10;
+// Turning a Task into a Thread takes about 9 queries however long its
+// checklist, so only 4 fit in a batch alongside other changes.
+export const turnsIntoThreadsLimit = 4;
 
 // The changes a Session makes with its tools. Reads, prompts and the signals
 // hooks send are left out of batches.
@@ -128,6 +131,9 @@ export function createHandler(
 			});
 			const refused = found.indexOf(undefined);
 			if (refused !== -1) throw new ThreadError('invalid', `Change ${refused} is not one a batch can make`);
+			if (found.filter(route => route!.pattern === '/api/tasks/:id/thread').length > turnsIntoThreadsLimit) {
+				throw new ThreadError('invalid', `A batch turns at most ${turnsIntoThreadsLimit} Tasks into Threads, so nothing was changed`);
+			}
 			const results: BatchResult[] = [];
 			for (const [index, route] of found.entries()) {
 				const result = await respond(() => route!.handler(route!.params, requests[index].body ?? {}));

@@ -4,7 +4,7 @@
 
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {z} from 'zod';
-import {batchLimit, type BatchRequest} from '../api/api.js';
+import {batchLimit, turnsIntoThreadsLimit, type BatchRequest} from '../api/api.js';
 import {ApiError, type Client} from '../client/client.js';
 import {belongingOrder, taskBelongs, threadBelongs, type Area, type Project} from '../core/project.js';
 import {dayOf, listOf, listRows, lists, places, type Place, type Task} from '../core/task.js';
@@ -446,7 +446,7 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 		'batch',
 		{
 			description:
-				`Make up to ${batchLimit} changes in one call, in order. Each is written as its own tool takes it, with "tool" naming which: ` +
+				`Make up to ${batchLimit} changes in one call, in order, of which at most ${turnsIntoThreadsLimit} can be turn_task_into_thread. Each is written as its own tool takes it, with "tool" naming which: ` +
 				'create_thread, update_thread, move_thread, add_task, edit_task, turn_task_into_thread, create_area, update_area, create_project or update_project. Results come back in the same order, with the id of anything created. ' +
 				'It stops at the first change that fails and keeps the ones before it. A change can only use ids that exist before the call, ' +
 				'so to change something created here, use the ids it returns in a second call.',

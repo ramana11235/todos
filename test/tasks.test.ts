@@ -1,4 +1,6 @@
 import {beforeEach, describe, expect, it} from 'vitest';
+import {batchLimit, createHandler, turnsIntoThreadsLimit} from '../src/api/api.js';
+import {Thoughts} from '../src/core/thoughts.js';
 import {listOf, listRows, type Task} from '../src/core/task.js';
 import {belongingOrder} from '../src/core/project.js';
 import {Projects} from '../src/core/projects.js';
@@ -353,6 +355,48 @@ describe('turning a Task into a Thread', () => {
 		expect((await into(tasks.add({title: 'Do the tax return', when: {kind: 'on_day', day: '2027-04-06'}}))).when).toEqual({kind: 'on_day', day: '2027-04-06'});
 		// A Date that has come puts the Task in Today, so the Thread is Active.
 		expect((await into(tasks.add({title: 'Pay the bill', when: {kind: 'on_day', day: '2020-01-01'}}))).when).toEqual({kind: 'active'});
+	});
+
+	// The hosted Instance allows 50 queries a request, and a batch can turn
+	// several Tasks into Threads in one. Each storage call is one query.
+	let calls = 0;
+	const counted = () => new Proxy(storage, {
+		get: (target, name) => {
+			const value = Reflect.get(target, name);
+			return typeof value === 'function' ? (...args: unknown[]) => (calls++, value.apply(target, args)) : value;
+		},
+	});
+
+	it('writes all its steps in one query, however long the checklist', async () => {
+		const queries = async (steps: number) => {
+			const task = await tasks.add({title: `${steps} steps`, checklist: Array.from({length: steps}, (_, n) => ({title: `Step ${n}`, done: n === 0}))});
+			calls = 0;
+			await new Tasks(counted(), () => new Date('2026-10-18T09:00:00')).turnIntoThread(task.id, null, new Threads(counted()));
+			return calls;
+		};
+		const one = await queries(1);
+		expect(await queries(30)).toBe(one);
+		expect(one).toBeLessThanOrEqual(10);
+		expect((await tasks.list()).filter(t => t.title.startsWith('Step')).length).toBe(29);
+		expect((await tasks.logbook()).map(t => t.title)).toEqual(['Step 0', 'Step 0']);
+	});
+
+	it('fits a full batch with four turns of long checklists and typical changes within 50 queries', async () => {
+		const thread = await threads.create({title: 'Plan a party'});
+		const ids = [];
+		for (const n of [1, 2, 3, 4]) ids.push((await tasks.add({title: `Task ${n}`, checklist: Array.from({length: 20}, (_, s) => ({title: `Step ${s}`}))})).id);
+		const others = Array.from({length: batchLimit - turnsIntoThreadsLimit}, (_, n) => ({method: 'PATCH', path: `/api/threads/${thread.id}`, body: {title: `Plan ${n}`}}));
+		const store = counted();
+		const handle = createHandler(new Threads(store), new Tasks(store), new Thoughts(store), new Projects(store));
+		calls = 0;
+		const response = await handle(new Request('http://localhost/api/batch', {
+			method: 'POST',
+			headers: {'content-type': 'application/json'},
+			body: JSON.stringify({requests: [...ids.map(id => ({method: 'POST', path: `/api/tasks/${id}/thread`, body: {}})), ...others]}),
+		}));
+		const {results} = await response.json() as {results: Array<{status: number}>};
+		expect(results.map(result => result.status)).toEqual(Array(batchLimit).fill(200));
+		expect(calls).toBeLessThanOrEqual(50);
 	});
 
 	it('puts the new Thread at the top level when given no parent', async () => {

@@ -97,15 +97,15 @@ export abstract class SqlStorage implements Storage {
 		return row ? taskFromRow(row) : undefined;
 	}
 
-	async saveTask(task: Task): Promise<void> {
-		await this.db.run(
-			`INSERT INTO tasks (id, title, when_kind, when_day, thread_id, belongs_kind, belongs_id, position, deadline, notes, checklist, ended, ended_at, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				ON CONFLICT(id) DO UPDATE SET
-					title = excluded.title, when_kind = excluded.when_kind, when_day = excluded.when_day,
-					thread_id = excluded.thread_id, belongs_kind = excluded.belongs_kind, belongs_id = excluded.belongs_id, position = excluded.position, deadline = excluded.deadline,
-					notes = excluded.notes, checklist = excluded.checklist, ended = excluded.ended,
-					ended_at = excluded.ended_at`,
+	saveTask(task: Task): Promise<void> {
+		return this.saveTasks([task]);
+	}
+
+	// Each row's values are read from one JSON array, because D1 takes at
+	// most 100 bound values in a query and 14 a row would pass that.
+	async saveTasks(tasks: Task[]): Promise<void> {
+		if (tasks.length === 0) return;
+		const rows = tasks.map(task => [
 			task.id,
 			task.title,
 			task.when.kind,
@@ -119,6 +119,17 @@ export abstract class SqlStorage implements Storage {
 			task.ended,
 			task.endedAt,
 			task.createdAt,
+		]);
+		// SQLite needs the WHERE so that it reads ON CONFLICT as part of the INSERT.
+		await this.db.run(
+			`INSERT INTO tasks (id, title, when_kind, when_day, thread_id, belongs_kind, belongs_id, position, deadline, notes, checklist, ended, ended_at, created_at)
+				SELECT ${rows[0]!.map((_, column) => `value ->> ${column}`).join(', ')} FROM json_each(?) WHERE true
+				ON CONFLICT(id) DO UPDATE SET
+					title = excluded.title, when_kind = excluded.when_kind, when_day = excluded.when_day,
+					thread_id = excluded.thread_id, belongs_kind = excluded.belongs_kind, belongs_id = excluded.belongs_id, position = excluded.position, deadline = excluded.deadline,
+					notes = excluded.notes, checklist = excluded.checklist, ended = excluded.ended,
+					ended_at = excluded.ended_at`,
+			JSON.stringify(rows),
 		);
 	}
 

@@ -15,6 +15,9 @@ export interface Storage {
 	listTasks(): Promise<Task[]>;
 	getTask(id: string): Promise<Task | undefined>;
 	saveTask(task: Task): Promise<void>;
+	// Saves them all in one query, so a long list fits the hosted Instance's
+	// queries per request.
+	saveTasks(tasks: Task[]): Promise<void>;
 	// Each update below writes only the given fields, as updateThread does.
 	updateTask(id: string, changes: Partial<Task>): Promise<void>;
 	// Gives each Task its place in `ids` as its position, from 0, in one
