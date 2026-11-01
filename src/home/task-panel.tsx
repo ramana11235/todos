@@ -25,6 +25,9 @@ export type TaskPanelDeps = {
 	// False while nobody can see the panel, so it stops asking todos for
 	// changes that no one would see. The hosted Instance counts every request.
 	shown?: () => boolean;
+	// Told of each piece of work the panel starts, such as asking todos for
+	// changes or saving an edit, so a test can wait for exactly that work.
+	onWork?: (work: Promise<unknown>) => void;
 };
 
 type Mode =
@@ -56,6 +59,11 @@ export function TaskPanel(deps: TaskPanelDeps) {
 
 	const seen = useRef<Seen>({kind: 'nothing'});
 
+	const started = (work: Promise<unknown>) => {
+		deps.onWork?.(work);
+		return work;
+	};
+
 	const refresh = useCallback(async () => {
 		try {
 			const changes = await client.changes(seen.current);
@@ -73,9 +81,9 @@ export function TaskPanel(deps: TaskPanelDeps) {
 	}, [client, deps]);
 
 	useEffect(() => {
-		void refresh();
+		void started(refresh());
 		const timer = setInterval(() => {
-			if (deps.shown?.() !== false) void refresh();
+			if (deps.shown?.() !== false) void started(refresh());
 		}, pollMs);
 		return () => clearInterval(timer);
 	}, [refresh, pollMs]);
@@ -102,15 +110,16 @@ export function TaskPanel(deps: TaskPanelDeps) {
 	lastIndex.current = index;
 	const selected = taskRows[index];
 
-	const act = async (work: () => Promise<unknown>) => {
-		try {
-			setMessage(null);
-			await work();
-		} catch (error) {
-			setMessage(error instanceof Error ? error.message : String(error));
-		}
-		await refresh();
-	};
+	const act = (work: () => Promise<unknown>) =>
+		started((async () => {
+			try {
+				setMessage(null);
+				await work();
+			} catch (error) {
+				setMessage(error instanceof Error ? error.message : String(error));
+			}
+			await refresh();
+		})());
 
 	const tick = (task: Task) =>
 		act(async () => {
