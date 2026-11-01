@@ -4,7 +4,6 @@
 
 import {spawn, spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, openSync, readFileSync, writeFileSync} from 'node:fs';
-import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -153,7 +152,6 @@ function home(): void {
 	runner.markHomeBuild(buildId());
 	onNewBuild(() => runner.restartHome(homeStart(process.env.TODOS_LAUNCH_DIR ?? process.cwd())));
 	const foldsPath = join(todosHome(), 'folded.json');
-	const expand = (path: string) => path.replace(/^~(?=$|\/)/, homedir());
 	// Home's process is the one on the laptop that delivers prompts. While no
 	// terminal is attached it checks for them less often, since every check
 	// is a request the hosted Instance counts. While I am at the laptop it
@@ -169,7 +167,7 @@ function home(): void {
 		delivering = true;
 		deliverPrompts(client, {
 			livePanes: () => runner.livePanes(),
-			start: (thread, directory, prompt) => runner.start(thread, expand(directory), prompt),
+			start: (thread, directory, prompt) => runner.start(thread, directory, prompt),
 			type: (pane, text) => runner.type(pane, text),
 		})
 			.catch(() => {})
@@ -178,7 +176,7 @@ function home(): void {
 	render(
 		<Home
 			client={client}
-			open={(thread, directory) => runner.open(thread, expand(directory))}
+			open={(thread, directory) => runner.open(thread, directory)}
 			livePanes={() => runner.livePanes()}
 			leave={() => tmux.tryRun(['detach-client', '-s', tmuxSession])}
 			launchDir={process.env.TODOS_LAUNCH_DIR ?? process.cwd()}

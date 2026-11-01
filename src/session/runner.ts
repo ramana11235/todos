@@ -5,6 +5,7 @@
 
 import {randomUUID} from 'node:crypto';
 import {existsSync} from 'node:fs';
+import {homedir} from 'node:os';
 import type {Thread} from '../core/thread.js';
 import {homeWindow, tasksPaneWidth, thoughtsHeight, tmuxSession} from './tmux-config.js';
 import type {Tmux} from './tmux.js';
@@ -85,23 +86,26 @@ export class SessionRunner {
 	// Starts a Thread's Session without going to it, fresh or resuming its
 	// conversation, with `prompt` as its first if one was sent.
 	start(thread: Thread, directory: string, prompt?: string): OpenResult {
+		// A Directory is kept as it was typed, so ~ can stand for my home
+		// folder. The message names it that way too, as Home's details do.
+		const path = directory.replace(/^~(?=$|\/)/, homedir());
 		// tmux would quietly start it in my home folder instead.
-		if (!existsSync(directory)) throw new Error(`There is no folder at ${directory}`);
-		const resume = thread.claudeSessionId !== null && this.canResume(directory, thread.claudeSessionId);
+		if (!existsSync(path)) throw new Error(`There is no folder at ${directory}`);
+		const resume = thread.claudeSessionId !== null && this.canResume(path, thread.claudeSessionId);
 		// A conversation kept under another folder still holds its id, and
 		// Claude exits at once if a fresh one is given it, so it gets a new id.
 		const sessionId = resume ? thread.claudeSessionId! : randomUUID();
 		const {command, env} = this.sessionCommand({thread, sessionId, resume, prompt});
 		const window = this.windowOf(thread.id);
 		const created = window
-			? this.tmux.run(['split-window', '-d', '-t', window, '-c', directory, '-P', '-F', '#{pane_id}', ...envArgs(env), ...command])
+			? this.tmux.run(['split-window', '-d', '-t', window, '-c', path, '-P', '-F', '#{pane_id}', ...envArgs(env), ...command])
 			: this.tmux.run([
-				'new-window', '-d', '-t', `${tmuxSession}:`, '-n', thread.title, '-c', directory,
+				'new-window', '-d', '-t', `${tmuxSession}:`, '-n', thread.title, '-c', path,
 				'-P', '-F', '#{pane_id}', ...envArgs(env), ...command,
 			]);
 		const sessionPane = created.trim();
 		if (!window) this.tmux.run(['set-option', '-w', '-t', sessionPane, '@todos_thread', thread.id]);
-		this.tmux.run(['set-option', '-w', '-t', sessionPane, '@todos_directory', directory]);
+		this.tmux.run(['set-option', '-w', '-t', sessionPane, '@todos_directory', path]);
 		return {sessionPane, claudeSessionId: sessionId};
 	}
 

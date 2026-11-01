@@ -1,6 +1,6 @@
 import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {basename, dirname, join} from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import type {Thread} from '../src/core/thread.js';
 import {SessionRunner, type SessionCommand} from '../src/session/runner.js';
@@ -122,6 +122,19 @@ describe('the Session runner', () => {
 		const again = runner.open(thread({claudeSessionId: 'kept-elsewhere'}), dir);
 		expect(starts).toEqual([{sessionId: again.claudeSessionId, resume: false}]);
 		expect(again.claudeSessionId).not.toBe('kept-elsewhere');
+	});
+
+	it('reads ~ in a Directory as the home folder, and names it that way when it is missing', () => {
+		const home = process.env.HOME;
+		process.env.HOME = dirname(dir);
+		try {
+			runner.open(thread(), `~/${basename(dir)}`);
+			expect(currentWindowName()).toBe('Build the MCP server');
+			const missing = `~/${basename(dir)}/never-made`;
+			expect(() => runner.open(thread({id: 'thread-2'}), missing)).toThrow(`There is no folder at ${missing}`);
+		} finally {
+			process.env.HOME = home;
+		}
 	});
 
 	it('starts nothing in a Directory that does not exist', () => {
