@@ -37,7 +37,7 @@ export function Capture({open, onClose, onSave}: {open: boolean; onClose: () => 
 				<Input
 					autoFocus
 					placeholder="Capture"
-					className="border-none font-mono text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+					className="border-none font-sans text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
 					onKeyDown={e => {
 						if (e.key === 'Enter' && e.currentTarget.value.trim()) finish(e.currentTarget.value.trim());
 						if (e.key === 'Escape') finish('');

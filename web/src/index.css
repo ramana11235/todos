@@ -7,7 +7,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --font-heading: 'Geist Variable', sans-serif;
     --font-sans: 'Geist Variable', sans-serif;
     --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
     --color-sidebar-ring: var(--sidebar-ring);

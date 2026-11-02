@@ -11,7 +11,7 @@ import {dayName} from './days';
 
 // A Task's title reads the same whether it is shown or being edited. The
 // input's own md:text-sm would otherwise make it smaller on wide screens.
-export const titleClass = 'font-mono text-[0.9375rem] leading-6 md:text-[0.9375rem]';
+export const titleClass = 'font-sans text-[0.9375rem] leading-6 md:text-[0.9375rem]';
 export const bareInput = 'h-auto min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none focus-visible:ring-0 dark:bg-transparent';
 
 // Small marks for what an open Task would show: Notes, Checklist progress,
