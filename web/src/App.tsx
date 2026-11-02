@@ -657,17 +657,26 @@ export function App() {
 	};
 
 	// A tap or click anywhere outside the open Task closes it, which is the
-	// only way to close it on the phone. Its pickers, menus and dialogs sit
+	// only way to close it on the phone. That click does nothing else, so a
+	// Task clicked below never slides away from under the pointer as the card
+	// shrinks; the next click selects it. Its pickers, menus and dialogs sit
 	// outside it in the page, so they do not count as outside.
 	useEffect(() => {
 		if (!openId) return;
+		const swallow = (e: MouseEvent) => {
+			e.stopPropagation();
+			e.preventDefault();
+		};
 		const onDown = (e: PointerEvent) => {
 			const target = e.target as Element;
 			if (target.closest(`[data-task="${openId}"], [role=dialog], [role=menu], [role=listbox], [data-radix-popper-content-wrapper], [data-sonner-toaster]`)) return;
 			setOpenId(null);
+			document.addEventListener('click', swallow, {capture: true, once: true});
+			// A press that never becomes a click, such as a drag, must not eat a later one.
+			document.addEventListener('pointerdown', () => document.removeEventListener('click', swallow, true), {capture: true, once: true});
 		};
-		document.addEventListener('pointerdown', onDown);
-		return () => document.removeEventListener('pointerdown', onDown);
+		document.addEventListener('pointerdown', onDown, true);
+		return () => document.removeEventListener('pointerdown', onDown, true);
 	}, [openId]);
 
 	useEffect(() => {
