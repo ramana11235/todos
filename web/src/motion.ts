@@ -69,18 +69,34 @@ export function useMotion(body: RefObject<HTMLElement | null>, look: string, vie
 		const {arrived, gone, settled} = handled.current;
 		handled.current = nothingHandled();
 		const was = seen.current;
-		const columns = new Map<string, Seen>();
-		const rows = new Map<string, Seen>();
-		const elements: Array<[HTMLElement, string, string]> = [];
 		const measure = (el: HTMLElement, column: string): Seen =>
 			({top: el.offsetTop, rect: el.getBoundingClientRect(), copy: el.cloneNode(true) as HTMLElement, column, fades: el.dataset.fade !== undefined});
-		for (const el of root.querySelectorAll<HTMLElement>('[data-column]')) columns.set(el.dataset.column!, measure(el, el.dataset.column!));
-		for (const el of root.querySelectorAll<HTMLElement>('[data-row]')) {
-			const column = el.closest<HTMLElement>('[data-column]')?.dataset.column ?? '';
-			rows.set(`${column}|${el.dataset.row}`, measure(el, column));
-			elements.push([el, column, el.dataset.row!]);
+		const measureAll = () => {
+			const columns = new Map<string, Seen>();
+			const rows = new Map<string, Seen>();
+			const elements: Array<[HTMLElement, string, string]> = [];
+			for (const el of root.querySelectorAll<HTMLElement>('[data-column]')) columns.set(el.dataset.column!, measure(el, el.dataset.column!));
+			for (const el of root.querySelectorAll<HTMLElement>('[data-row]')) {
+				const column = el.closest<HTMLElement>('[data-column]')?.dataset.column ?? '';
+				rows.set(`${column}|${el.dataset.row}`, measure(el, column));
+				elements.push([el, column, el.dataset.row!]);
+			}
+			return {columns, rows, elements};
+		};
+		const {columns, rows, elements} = measureAll();
+		const now = {look, view, rows, columns};
+		seen.current = now;
+		if (settled) {
+			// Another motion is still moving the rows to where they belong, so
+			// they are noted again once it ends. Noting them only now would make
+			// the next change glide them back from where that motion started.
+			const ending = root.getAnimations({subtree: true}).filter(a => Number.isFinite(a.effect?.getComputedTiming().endTime));
+			void Promise.allSettled(ending.map(a => a.finished)).then(() => {
+				if (seen.current !== now || !body.current) return;
+				const again = measureAll();
+				seen.current = {look, view, rows: again.rows, columns: again.columns};
+			});
 		}
-		seen.current = {look, view, rows, columns};
 		if (!was || was.look !== look || settled) return;
 		if (was.view !== view && (was.view === 'ended' || view === 'ended')) {
 			root.animate([{opacity: 0}, {opacity: 1}], {duration: ms, easing: ease});
