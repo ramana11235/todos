@@ -139,6 +139,14 @@ _Avoid_: Projects, Thread list
 One todos with its own data and its own API. A local **Instance** runs on a laptop against a SQLite file; the hosted **Instance** runs on Cloudflare. **Instances** never share data, and each **Home** uses exactly one.
 _Avoid_: Copy
 
+**Settings**:
+The choices I make about how one **Instance** looks, kept with that **Instance** so every browser, device and **Home** showing it follow them. The first is the **Accent colour**.
+_Avoid_: Preferences, options, config
+
+**Accent colour**:
+The colour todos draws its highlights in, blue unless I pick another. Giving each **Instance** its own lets me tell them apart at a glance.
+_Avoid_: Theme
+
 ## Relationships
 
 ### Whose move, When and Ended

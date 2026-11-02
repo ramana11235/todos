@@ -6,6 +6,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {Client, Seen} from '../src/client/client.js';
 import {childrenOf, type Thread} from '../src/core/thread.js';
 import {Home, hintLines, homeRenderOptions, restoreFocusAndSelection} from '../src/home/home.js';
+import {applyAccentColour, colours} from '../src/home/look.js';
 import {startApi} from './support.js';
 
 let client: Client;
@@ -56,6 +57,15 @@ const selectedTitle = (frame: string) =>
 	frame.split('\n').find(line => line.includes('›'))?.replace(/[›├└─●▸]/g, '').trim().split(/\s{2,}/)[0];
 
 describe('Home', () => {
+	it('draws in the Instance\'s accent colour', async () => {
+		await client.editSettings({accentColour: 'teal'});
+		const {unmount} = show();
+		await settle();
+		expect(colours.accent).toBe('#79e3dc');
+		unmount();
+		applyAccentColour('blue');
+	});
+
 	it('draws the tree with tree lines and nothing after the titles', async () => {
 		const {lastFrame, unmount} = show();
 		await settle();

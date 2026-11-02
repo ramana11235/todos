@@ -9,8 +9,8 @@ import {colours} from './look.js';
 export function nvimConfig(): string {
 	return `-- Written by todos. Changes are overwritten.
 local colours = {
-	blue = '${colours.blue}',
-	deepBlue = '${colours.deepBlue}',
+	accent = '${colours.accent}',
+	deepAccent = '${colours.deepAccent}',
 	line = '${colours.line}',
 	text = '${colours.text}',
 	faint = '${colours.faint}',
@@ -55,25 +55,25 @@ local function look()
 	hl('FoldColumn', {})
 	hl('EndOfBuffer', {fg = colours.line})
 	hl('NonText', {fg = colours.dim})
-	hl('WinBar', {fg = colours.blue})
-	hl('WinBarNC', {fg = colours.blue})
-	hl('ThoughtsTitle', {fg = colours.blue, bold = true})
+	hl('WinBar', {fg = colours.accent})
+	hl('WinBarNC', {fg = colours.accent})
+	hl('ThoughtsTitle', {fg = colours.accent, bold = true})
 	hl('ThoughtsHint', {fg = colours.dim})
-	hl('ThoughtsMessage', {fg = colours.blue})
+	hl('ThoughtsMessage', {fg = colours.accent})
 	hl('Visual', {bg = colours.line})
-	hl('Search', {fg = colours.text, bg = colours.deepBlue})
-	hl('CurSearch', {fg = '#000000', bg = colours.blue})
-	hl('IncSearch', {fg = '#000000', bg = colours.blue})
-	hl('MatchParen', {fg = colours.blue, bold = true})
+	hl('Search', {fg = colours.text, bg = colours.deepAccent})
+	hl('CurSearch', {fg = '#000000', bg = colours.accent})
+	hl('IncSearch', {fg = '#000000', bg = colours.accent})
+	hl('MatchParen', {fg = colours.accent, bold = true})
 	hl('MsgArea', {fg = colours.faint})
-	hl('ErrorMsg', {fg = colours.blue})
-	hl('WarningMsg', {fg = colours.blue})
-	hl('Title', {fg = colours.blue, bold = true})
+	hl('ErrorMsg', {fg = colours.accent})
+	hl('WarningMsg', {fg = colours.accent})
+	hl('Title', {fg = colours.accent, bold = true})
 	for level = 1, 6 do
-		hl('markdownH' .. level, {fg = colours.blue, bold = true})
-		hl('markdownH' .. level .. 'Delimiter', {fg = colours.deepBlue, bold = true})
-		hl('@markup.heading.' .. level .. '.markdown', {fg = colours.blue, bold = true})
-		hl('@markup.heading.' .. level .. '.marker.markdown', {fg = colours.deepBlue, bold = true})
+		hl('markdownH' .. level, {fg = colours.accent, bold = true})
+		hl('markdownH' .. level .. 'Delimiter', {fg = colours.deepAccent, bold = true})
+		hl('@markup.heading.' .. level .. '.markdown', {fg = colours.accent, bold = true})
+		hl('@markup.heading.' .. level .. '.marker.markdown', {fg = colours.deepAccent, bold = true})
 	end
 	hl('markdownListMarker', {fg = colours.dim})
 	hl('markdownOrderedListMarker', {fg = colours.dim})

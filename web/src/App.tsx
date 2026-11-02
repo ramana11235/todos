@@ -27,6 +27,7 @@ import {TooltipProvider} from '@/components/ui/tooltip';
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarHeader,
 	SidebarInset,
@@ -43,6 +44,7 @@ import {useIsMobile} from '@/hooks/use-mobile';
 import {ApiError, Client, type Seen} from '../../src/client/client';
 import {belongingOrder, belongsKey, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
+import type {AccentColour} from '../../src/core/settings';
 import {dayOf, groupedByThread, listNames, listOf, lists, whenAfter, type List, type Place, type Task} from '../../src/core/task';
 import type {TaskEdit} from '../../src/core/tasks';
 import type {MyEdit} from '../../src/core/threads';
@@ -61,6 +63,7 @@ import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageIt
 import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
 import {TaskFinder} from './TaskFinder';
+import {Settings} from './Settings';
 
 // A phone on a slow connection can take a while to answer. Giving up early
 // would report a change as failed after it was saved, and trying again
@@ -177,6 +180,7 @@ export function App() {
 	const [threads, setThreads] = useState<Thread[]>([]);
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [areas, setAreas] = useState<Area[]>([]);
+	const [accentColour, setAccentColour] = useState<AccentColour>('blue');
 	const [shown, setShown] = useState<Belongs>(() => addressOf(window.location.hash).shown);
 	// Ending a project or area with open work inside asks first.
 	const [ending, setEnding] = useState<{page: Page; how: 'done' | 'dropped'; open: string[]} | null>(null);
@@ -194,6 +198,7 @@ export function App() {
 	const startFind = () => (view === 'threads' ? setThreadFind(n => n + 1) : setFinding(true));
 	const [adding, setAdding] = useState(false);
 	const [capturing, setCapturing] = useState(false);
+	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [dragging, setDragging] = useState<string[]>([]);
 	// Projects picked in the sidebar with shift- or cmd-click, and the one a
 	// shift-click runs from, as for Tasks.
@@ -236,6 +241,7 @@ export function App() {
 			setThreads(changes.threads);
 			setProjects(changes.projects);
 			setAreas(changes.areas);
+			setAccentColour(changes.settings.accentColour);
 			if (view === 'logbook') setEnded(await client.logbook());
 		} catch (error) {
 			// Once the Cloudflare Access sign-in runs out, Access answers with a
@@ -372,7 +378,7 @@ export function App() {
 	// when closed, while the rest steps back. The rows below move with it, so
 	// nothing else glides. This runs before the glides, so it can say so.
 	const openShown = openId && rows.some(row => row.kind === 'task' && row.task.id === openId) ? openId : null;
-	const away = (id?: string) => stepBack(capturing || (openShown !== null && id !== openShown));
+	const away = (id?: string) => stepBack(capturing || settingsOpen || (openShown !== null && id !== openShown));
 	const card = useRef<{id: string; copy: HTMLElement; rect: DOMRect; space: number} | null>(null);
 	const rowHeights = useRef(new Map<string, number>());
 	const rowOf = (id: string) => body.current?.querySelector<HTMLElement>(`[data-row="${id}"]`) ?? null;
@@ -1029,6 +1035,18 @@ export function App() {
 								</SidebarMenu>
 							</SidebarGroup>
 						</SidebarContent>
+						<SidebarFooter className="px-3 pb-3" style={away()}>
+							<Settings
+								open={settingsOpen}
+								onOpen={() => setSettingsOpen(true)}
+								onClose={() => setSettingsOpen(false)}
+								accentColour={accentColour}
+								onPickColour={colour => {
+									setAccentColour(colour);
+									void client.editSettings({accentColour: colour}).catch(() => toast('Could not save the colour'));
+								}}
+							/>
+						</SidebarFooter>
 					</Sidebar>
 					<SidebarInset className={cn(view === 'threads' && 'h-svh')}>
 						<header className="flex items-center justify-between px-3 pt-3 md:hidden">

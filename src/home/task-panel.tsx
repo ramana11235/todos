@@ -10,7 +10,7 @@ import {dayOf, listNames, listOf, listRows, lists, type List, type Task, type Ta
 import {descendantsOf, type Thread} from '../core/thread.js';
 import {dayName} from '../core/words.js';
 import {Highlighted, hintLines, unreachable} from './home.js';
-import {colours} from './look.js';
+import {applyAccentColour, colours} from './look.js';
 import {TextInput} from './text-input.js';
 
 export type TaskPanelDeps = {
@@ -67,6 +67,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 				seen.current = {kind: 'number', number: changes.number};
 				setTasks(changes.tasks);
 				setThreads(changes.threads);
+				applyAccentColour(changes.settings.accentColour);
 				setOrder(belongingOrder(changes.projects, changes.areas));
 			}
 			setCurrent(deps.currentThread());
@@ -196,7 +197,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 		<Box flexDirection="column" height={height} paddingX={2} paddingY={1}>
 			<Text wrap="truncate">
 				{lists.map((name, i) => (
-					<Text key={name} color={name === list ? colours.blue : colours.dim} bold={name === list}>
+					<Text key={name} color={name === list ? colours.accent : colours.dim} bold={name === list}>
 						{i ? '  ' : ''}
 						{listNames[name]}
 					</Text>
@@ -208,7 +209,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 			</Box>
 			{mode.kind === 'search' ? (
 				<Text>
-					<Text color={colours.blue}>/</Text>
+					<Text color={colours.accent}>/</Text>
 					<TextInput value={mode.query} onChange={value => setMode({kind: 'search', query: value})}
 						onSubmit={value => {
 							setMode({kind: 'browse'});
@@ -218,7 +219,7 @@ export function TaskPanel(deps: TaskPanelDeps) {
 				</Text>
 			) : (
 				hintLines(message ?? hints(mode), 40).map((line, i) => (
-					<Text key={i} color={message ? colours.blue : colours.dim}>{line}</Text>
+					<Text key={i} color={message ? colours.accent : colours.dim}>{line}</Text>
 				))
 			)}
 		</Box>
@@ -269,7 +270,7 @@ function RowView({row, today, first, selected, mode, query, onRename, onRenameCh
 	return (
 		<Box justifyContent="space-between">
 			<Text wrap="truncate" color={done ? colours.dim : selected ? colours.text : colours.faint} strikethrough={done}>
-				<Text color={selected ? colours.blue : colours.dim}>{done ? '● ' : '○ '}</Text>
+				<Text color={selected ? colours.accent : colours.dim}>{done ? '● ' : '○ '}</Text>
 				{renaming ? <TextInput value={mode.title} onChange={onRenameChange} onSubmit={onRename} /> : <Highlighted text={task.title} query={query} />}
 			</Text>
 			{/* In Upcoming the day's heading already says it. */}

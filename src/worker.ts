@@ -4,6 +4,7 @@
 import {requireAccess} from './api/access.js';
 import {createHandler} from './api/api.js';
 import {Projects} from './core/projects.js';
+import {InstanceSettings} from './core/settings.js';
 import {Tasks} from './core/tasks.js';
 import {Thoughts} from './core/thoughts.js';
 import {Threads} from './core/threads.js';
@@ -19,7 +20,7 @@ export default {
 		// fetched once rather than on every request.
 		if (!handler) {
 			const storage = new D1Storage(env.DB);
-			const api = createHandler(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage));
+			const api = createHandler(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage));
 			handler = requireAccess(api, {team: env.ACCESS_TEAM, audience: env.ACCESS_AUD});
 		}
 		return handler(request);

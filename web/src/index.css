@@ -58,40 +58,44 @@
        whole page, as the browser's zoom would. */
     font-size: 100%;
     --radius: 0.25rem;
+    /* The accent colour in OKLCH: blue unless another is picked. */
+    --l: 0.85;
+    --c: 0.09;
+    --hue: 230;
     --background: oklch(0.17 0.015 250);
     --foreground: oklch(0.93 0.01 240);
     --card: oklch(0.2 0.02 250);
     --card-foreground: oklch(0.93 0.01 240);
     --popover: oklch(0.2 0.02 250);
     --popover-foreground: oklch(0.93 0.01 240);
-    --primary: oklch(0.85 0.09 230);
+    --primary: oklch(var(--l) var(--c) var(--hue));
     --primary-foreground: oklch(0.17 0.015 250);
     --secondary: oklch(0.24 0.02 250);
     --secondary-foreground: oklch(0.93 0.01 240);
     --muted: oklch(0.24 0.02 250);
     --muted-foreground: oklch(0.62 0.02 245);
-    --accent: oklch(0.26 0.03 245);
+    --accent: oklch(0.26 0.03 calc(var(--hue) + 15));
     --accent-foreground: oklch(0.93 0.01 240);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(0.83 0.09 230 / 14%);
-    --input: oklch(0.83 0.09 230 / 20%);
-    --ring: oklch(0.85 0.09 230);
-    --chart-1: oklch(0.85 0.09 230);
-    --chart-2: oklch(0.7 0.11 240);
-    --chart-3: oklch(0.55 0.03 245);
-    --chart-4: oklch(0.45 0.03 245);
-    --chart-5: oklch(0.35 0.03 245);
+    --border: oklch(calc(var(--l) - 0.02) var(--c) var(--hue) / 14%);
+    --input: oklch(calc(var(--l) - 0.02) var(--c) var(--hue) / 20%);
+    --ring: oklch(var(--l) var(--c) var(--hue));
+    --chart-1: oklch(var(--l) var(--c) var(--hue));
+    --chart-2: oklch(calc(var(--l) - 0.15) calc(var(--c) + 0.02) calc(var(--hue) + 10));
+    --chart-3: oklch(0.55 0.03 calc(var(--hue) + 15));
+    --chart-4: oklch(0.45 0.03 calc(var(--hue) + 15));
+    --chart-5: oklch(0.35 0.03 calc(var(--hue) + 15));
     --sidebar: oklch(0.15 0.015 250);
     --sidebar-foreground: oklch(0.93 0.01 240);
-    --sidebar-primary: oklch(0.85 0.09 230);
+    --sidebar-primary: oklch(var(--l) var(--c) var(--hue));
     --sidebar-primary-foreground: oklch(0.17 0.015 250);
-    --sidebar-accent: oklch(0.25 0.03 245);
+    --sidebar-accent: oklch(0.25 0.03 calc(var(--hue) + 15));
     --sidebar-accent-foreground: oklch(0.93 0.01 240);
-    --sidebar-border: oklch(0.83 0.09 230 / 12%);
-    --sidebar-ring: oklch(0.85 0.09 230);
-    --icon-bright: oklch(0.85 0.09 230);
-    --icon-mid: oklch(0.7 0.11 240);
-    --icon-faint: oklch(0.55 0.03 245);
+    --sidebar-border: oklch(calc(var(--l) - 0.02) var(--c) var(--hue) / 12%);
+    --sidebar-ring: oklch(var(--l) var(--c) var(--hue));
+    --icon-bright: oklch(var(--l) var(--c) var(--hue));
+    --icon-mid: oklch(calc(var(--l) - 0.15) calc(var(--c) + 0.02) calc(var(--hue) + 10));
+    --icon-faint: oklch(0.55 0.03 calc(var(--hue) + 15));
     --deadline: oklch(0.78 0.12 50);
 }
 
@@ -111,7 +115,7 @@
 
 /* The shimmer Home uses on a Thread whose Session is working. */
 .shimmer {
-  background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 40%, oklch(0.97 0.03 230) 50%, var(--primary) 60%, var(--primary) 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 40%, oklch(0.97 0.03 var(--hue)) 50%, var(--primary) 60%, var(--primary) 100%);
   background-size: 250% 100%;
   -webkit-background-clip: text;
   background-clip: text;

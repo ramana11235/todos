@@ -1,5 +1,6 @@
 import type {Area, Project} from '../core/project.js';
 import type {Task} from '../core/task.js';
+import type {Settings} from '../core/settings.js';
 import type {Page} from '../core/thoughts.js';
 import type {Prompt, Thread} from '../core/thread.js';
 
@@ -40,5 +41,8 @@ export interface Storage {
 	getThoughts(): Promise<Page>;
 	// Saves only if the page is still at `version`, and says whether it did.
 	saveThoughts(text: string, version: number): Promise<boolean>;
+	getSettings(): Promise<Settings>;
+	// Writes only the given settings.
+	updateSettings(changes: Partial<Settings>): Promise<void>;
 	close(): void;
 }

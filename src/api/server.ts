@@ -5,6 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from 'node:http';
 import {extname, join, normalize} from 'node:path';
 import type {Projects} from '../core/projects.js';
+import type {InstanceSettings} from '../core/settings.js';
 import type {Tasks} from '../core/tasks.js';
 import type {Thoughts} from '../core/thoughts.js';
 import type {Threads} from '../core/threads.js';
@@ -18,9 +19,10 @@ export function createApi(
 	tasks: Tasks,
 	thoughts: Thoughts,
 	projects: Projects,
+	settings: InstanceSettings,
 	{build = null, home = null, web = null}: {build?: string | null; home?: string | null; web?: string | null} = {},
 ): Server {
-	const handle = createHandler(threads, tasks, thoughts, projects, {build, home, pid: process.pid});
+	const handle = createHandler(threads, tasks, thoughts, projects, settings, {build, home, pid: process.pid});
 	return createServer(async (request, response) => {
 		const path = new URL(request.url ?? '/', 'http://localhost').pathname;
 		if (web && request.method === 'GET' && !path.startsWith('/api/')) return serveFile(response, web, path);

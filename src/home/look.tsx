@@ -3,12 +3,23 @@
 // attention (CLAUDE.md principles).
 
 import {Box, Text, useAnimation} from 'ink';
+import type {AccentColour} from '../core/settings.js';
+
+// The accent colours of each of the Instance's Settings, matching the web
+// app's: the bright one, a deeper one for the logo's sides, and the On me
+// dot between them.
+const accents: Record<AccentColour, {accent: string; deepAccent: string; dot: string}> = {
+	blue: {accent: '#83d4fe', deepAccent: '#4a8bb5', dot: '#55a6dc'},
+	teal: {accent: '#79e3dc', deepAccent: '#329a9b', dot: '#2cb8bc'},
+	green: {accent: '#9fe0ac', deepAccent: '#569972', dot: '#5fb887'},
+	amber: {accent: '#ecc981', deepAccent: '#9d8742', dot: '#bba148'},
+	pink: {accent: '#ffb3d7', deepAccent: '#b57089', dot: '#db84a2'},
+	purple: {accent: '#d7bfff', deepAccent: '#977ab4', dot: '#b68fd9'},
+	red: {accent: '#ff7c74', deepAccent: '#af3c29', dot: '#da482c'},
+};
 
 export const colours = {
-	blue: '#83d4fe',
-	deepBlue: '#4a8bb5',
-	// The On me dot, a deeper blue than the logo.
-	dot: '#55a6dc',
+	...accents.blue,
 	line: '#3a3f4b',
 	text: '#e6e9f2',
 	faint: '#6b7280',
@@ -18,6 +29,12 @@ export const colours = {
 	// A Deadline that is due by tomorrow.
 	deadline: '#f2994a',
 };
+
+// Every part of Home reads `colours` as it draws, so after this the next
+// draw is in the Instance's colour.
+export function applyAccentColour(colour: AccentColour) {
+	Object.assign(colours, accents[colour] ?? accents.blue);
+}
 
 // The logo is lowercase "todos" in the style of the ANSI Shadow font: solid
 // blocks in front, with a line-drawn side that gives it depth. It does not
@@ -39,7 +56,7 @@ export function Logo() {
 			{logo.map((row, y) => (
 				<Text key={y}>
 					{row.split(/(█+)/).map((run, x) => (
-						<Text key={x} color={run.startsWith('█') ? colours.blue : colours.deepBlue}>
+						<Text key={x} color={run.startsWith('█') ? colours.accent : colours.deepAccent}>
 							{run}
 						</Text>
 					))}

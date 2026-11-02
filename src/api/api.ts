@@ -5,6 +5,7 @@
 
 import type {Area, Project} from '../core/project.js';
 import type {Projects} from '../core/projects.js';
+import type {InstanceSettings, Settings} from '../core/settings.js';
 import type {Task} from '../core/task.js';
 import type {Tasks} from '../core/tasks.js';
 import type {Thoughts} from '../core/thoughts.js';
@@ -41,9 +42,9 @@ const batchable = new Set([
 ]);
 
 // The answer to a poll: nothing changed since the number the client last
-// saw, or the open Threads and Tasks, with every project and area, as they
-// are now with the number to send next time.
-export type Changes = {kind: 'same'} | {kind: 'changed'; number: number; threads: Thread[]; tasks: Task[]; projects: Project[]; areas: Area[]};
+// saw, or the open Threads and Tasks, with every project and area and the
+// Settings, as they are now with the number to send next time.
+export type Changes = {kind: 'same'} | {kind: 'changed'; number: number; threads: Thread[]; tasks: Task[]; projects: Project[]; areas: Area[]; settings: Settings};
 
 export type ApiHandler = (request: Request) => Promise<Response>;
 
@@ -55,6 +56,7 @@ export function createHandler(
 	tasks: Tasks,
 	thoughts: Thoughts,
 	projects: Projects,
+	settings: InstanceSettings,
 	{build = null, home = null, pid = null}: {build?: string | null; home?: string | null; pid?: number | null} = {},
 ): ApiHandler & {routes: string[]} {
 	const routes: Array<[method: string, pattern: string, handler: Handler]> = [
@@ -94,8 +96,8 @@ export function createHandler(
 		['GET', '/api/changes/:since', async ({since}): Promise<Changes> => {
 			const number = await threads.changeNumber();
 			if (since === String(number)) return {kind: 'same'};
-			const [threadList, taskList, projectList, areaList] = await Promise.all([threads.list(), tasks.list(), projects.listProjects(), projects.listAreas()]);
-			return {kind: 'changed', number, threads: threadList, tasks: taskList, projects: projectList, areas: areaList};
+			const [threadList, taskList, projectList, areaList, settingsNow] = await Promise.all([threads.list(), tasks.list(), projects.listProjects(), projects.listAreas(), settings.get()]);
+			return {kind: 'changed', number, threads: threadList, tasks: taskList, projects: projectList, areas: areaList, settings: settingsNow};
 		}],
 		['GET', '/api/tasks', async () => tasks.list()],
 		['GET', '/api/tasks/:id', async ({id}) => tasks.get(id!)],
@@ -117,6 +119,8 @@ export function createHandler(
 		['PATCH', '/api/projects/:id', async ({id}, body) => projects.editProject(id!, body)],
 		['GET', '/api/thoughts', async () => thoughts.get()],
 		['PUT', '/api/thoughts', async (_, body) => thoughts.save(body.text, body.version)],
+		['GET', '/api/settings', async () => settings.get()],
+		['PATCH', '/api/settings', async (_, body) => settings.edit(body)],
 		// Runs each change in order and stops at the first that fails, keeping
 		// the ones before it (docs/adr/0004). The batch failed when its last
 		// result's status is not 200 or it says `updated: false`, and the

@@ -1,5 +1,6 @@
 import type {Area, Belongs, InArea, Project} from '../core/project.js';
 import type {Place, Task, TaskWhen} from '../core/task.js';
+import type {Settings} from '../core/settings.js';
 import type {Page} from '../core/thoughts.js';
 import type {Deadline, Ended, Prompt, SessionSignal, Thread, When, WhoseMove} from '../core/thread.js';
 import type {Storage} from './storage.js';
@@ -213,6 +214,14 @@ export abstract class SqlStorage implements Storage {
 
 	async saveThoughts(text: string, version: number): Promise<boolean> {
 		return (await this.db.run('UPDATE thoughts SET text = ?, version = version + 1 WHERE version = ?', text, version)) === 1;
+	}
+
+	async getSettings(): Promise<Settings> {
+		return {...(await this.db.get<Settings>('SELECT accent_colour AS accentColour FROM settings'))!};
+	}
+
+	async updateSettings(changes: Partial<Settings>): Promise<void> {
+		if (changes.accentColour !== undefined) await this.db.run('UPDATE settings SET accent_colour = ?', changes.accentColour);
 	}
 
 	abstract close(): void;

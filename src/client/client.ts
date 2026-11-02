@@ -6,6 +6,7 @@ import type {Area, Belongs, Project} from '../core/project.js';
 import type {AreaEdit, NewProject, ProjectEdit} from '../core/projects.js';
 import type {Task} from '../core/task.js';
 import type {NewTask, TaskEdit} from '../core/tasks.js';
+import type {Settings, SettingsEdit} from '../core/settings.js';
 import type {Page, SaveResult} from '../core/thoughts.js';
 import type {Deadline, Prompt, SessionSignal, Thread, When} from '../core/thread.js';
 import type {MyEdit, SessionUpdate, SessionUpdateResult, SessionView} from '../core/threads.js';
@@ -122,6 +123,10 @@ export class Client {
 	send = <T>({method, path, body}: BatchRequest): Promise<T> => this.call(method, path, body);
 
 	thoughts = (): Promise<Page> => this.call('GET', '/api/thoughts');
+
+	settings = (): Promise<Settings> => this.call('GET', '/api/settings');
+
+	editSettings = (edit: SettingsEdit): Promise<Settings> => this.call('PATCH', '/api/settings', edit);
 
 	saveThoughts = (text: string, version: number): Promise<SaveResult> =>
 		this.call('PUT', '/api/thoughts', {text, version});

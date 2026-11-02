@@ -29,7 +29,7 @@ export function Capture({client}: {client: Client}) {
 
 	return (
 		<Text>
-			<Text color={failed ? colours.faint : colours.blue}>{failed ? ' Could not save. Capture: ' : ' Capture: '}</Text>
+			<Text color={failed ? colours.faint : colours.accent}>{failed ? ' Could not save. Capture: ' : ' Capture: '}</Text>
 			<TextInput value={title} onChange={setTitle} onSubmit={value => void save(value)} />
 		</Text>
 	);

@@ -10,7 +10,7 @@ import {dayOf} from '../core/task.js';
 import {ancestorsOf, descendantsOf, directoryOf, isActive, type ShownMove, type Thread, type View} from '../core/thread.js';
 import type {OpenResult} from '../session/runner.js';
 import {dayName, daysLeft, deadlineName, moveName, whenName} from '../core/words.js';
-import {colours, Logo, Shimmer} from './look.js';
+import {applyAccentColour, colours, Logo, Shimmer} from './look.js';
 import {TextInput} from './text-input.js';
 
 export type HomeDeps = {
@@ -119,6 +119,7 @@ export function Home(deps: HomeDeps) {
 			if (changes.kind === 'changed') {
 				seen.current = {kind: 'number', number: changes.number};
 				known.current = changes.threads;
+				applyAccentColour(changes.settings.accentColour);
 				setBelongings({projects: changes.projects, areas: changes.areas});
 			}
 			// A Session whose pane has gone is no longer busy or asking, so its
@@ -397,8 +398,8 @@ export function Home(deps: HomeDeps) {
 				<Logo />
 				<Box marginTop={1}>
 					<Text color={colours.faint}>Home  ·  </Text>
-					<Text color={view === 'active' ? colours.faint : colours.blue}>{viewName[view]}</Text>
-					{focused ? <Text color={colours.blue}>{`  ·  Focused on ${focused.title}`}</Text> : null}
+					<Text color={view === 'active' ? colours.faint : colours.accent}>{viewName[view]}</Text>
+					{focused ? <Text color={colours.accent}>{`  ·  Focused on ${focused.title}`}</Text> : null}
 				</Box>
 			</Box>
 			<Box flexGrow={1} marginTop={1} justifyContent="center">
@@ -439,7 +440,7 @@ export function Home(deps: HomeDeps) {
 			<Box marginBottom={1} flexDirection="column" alignItems="center">
 				{mode.kind === 'search' ? (
 					<Text>
-						<Text color={colours.blue}>/</Text>
+						<Text color={colours.accent}>/</Text>
 						<TextInput value={mode.query} onChange={value => setMode({kind: 'search', query: value})}
 							onSubmit={value => {
 								setMode({kind: 'browse'});
@@ -449,7 +450,7 @@ export function Home(deps: HomeDeps) {
 					</Text>
 				) : (
 					hintLines(message ?? hints(mode, view), treeWidth + detailsWidth).map((line, i) => (
-						<Text key={i} color={message ? colours.blue : colours.dim}>{line}</Text>
+						<Text key={i} color={message ? colours.accent : colours.dim}>{line}</Text>
 					))
 				)}
 			</Box>
@@ -488,7 +489,7 @@ function Row({row, view, today, prefix, selected, highlight, editing}: {
 			{/* The front of the row never shrinks, so long titles cannot push
 			    their indent out of line. */}
 			<Box flexShrink={0}>
-				<Text color={colours.blue}>{selected ? '› ' : '  '}</Text>
+				<Text color={colours.accent}>{selected ? '› ' : '  '}</Text>
 				<Text color={colours.line}>{prefix}</Text>
 				<Text color={onMe ? colours.dot : dimmed ? colours.dim : colours.faint}>{folded ? '▸ ' : of.kind === 'thread' ? '● ' : parentSymbol[of.kind]}</Text>
 			</Box>
@@ -518,7 +519,7 @@ export function Highlighted({text, query}: {text: string; query: string}) {
 	return (
 		<>
 			{text.slice(0, at)}
-			<Text color="#0b1a24" backgroundColor={colours.blue}>{text.slice(at, at + query.length)}</Text>
+			<Text color="#0b1a24" backgroundColor={colours.accent}>{text.slice(at, at + query.length)}</Text>
 			{text.slice(at + query.length)}
 		</>
 	);
@@ -537,7 +538,7 @@ export function Formatted({text}: {text: string}) {
 					<Text key={i} color={colours.text} bold={heading}>
 						{shown.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/).map((part, j) =>
 							part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <Text key={j} bold>{part.slice(2, -2)}</Text>
-							: part.startsWith('`') && part.endsWith('`') && part.length > 2 ? <Text key={j} color={colours.blue}>{part.slice(1, -1)}</Text>
+							: part.startsWith('`') && part.endsWith('`') && part.length > 2 ? <Text key={j} color={colours.accent}>{part.slice(1, -1)}</Text>
 							: part.startsWith('[') && part.endsWith(')') ? <Text key={j} underline>{part.slice(1, part.indexOf(']('))}</Text>
 							: part,
 						)}

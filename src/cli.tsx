@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {render} from 'ink';
 import {createApi} from './api/server.js';
+import {InstanceSettings} from './core/settings.js';
 import {apiAction, buildId, onNewBuild} from './build.js';
 import {Client} from './client/client.js';
 import {apiHeaders, apiPort, apiUrl, databasePath, settings, settingsPath, tmuxSocket, todosHome} from './config.js';
@@ -20,7 +21,7 @@ import type {List} from './core/task.js';
 import {Capture} from './home/capture.js';
 import {Home, homeRenderOptions} from './home/home.js';
 import {TaskPanel} from './home/task-panel.js';
-import {colours} from './home/look.js';
+import {applyAccentColour, colours} from './home/look.js';
 import {nvimConfig} from './home/thoughts.js';
 import {handleHook, type HookName} from './hooks/handle.js';
 import {createMcpServer} from './mcp/server.js';
@@ -120,7 +121,7 @@ async function serve(): Promise<void> {
 	if (settings().instance === 'hosted') throw new Error(`${settingsPath()} says this home uses the hosted Instance, so it runs no API of its own.`);
 	mkdirSync(todosHome(), {recursive: true});
 	const storage = new SqliteStorage(databasePath());
-	const server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), {
+	const server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), {
 		build: buildId(),
 		home: todosHome(),
 		// The web app is built next to this file, into dist/web.
@@ -237,7 +238,7 @@ function toggleThoughts(window: string): void {
 
 // Runs nvim on Thoughts in its pane. nvim reads and saves the page through
 // the two commands below.
-function thoughts(): void {
+async function thoughts(): Promise<void> {
 	const {runner} = tmuxAndRunner();
 	const pane = process.env.TMUX_PANE;
 	if (pane) setInterval(() => runner.putAwayThoughtsIfAlone(pane), 1000);
@@ -248,6 +249,7 @@ function thoughts(): void {
 		process.stdin.once('data', () => process.exit(0));
 		return;
 	}
+	await takeInstanceColour(new Client(apiUrl(), apiHeaders()));
 	const configPath = join(todosHome(), 'thoughts.lua');
 	writeFileSync(configPath, nvimConfig());
 	const nvim = spawn('nvim', ['--clean', '-u', configPath, 'Thoughts.md'], {
@@ -330,7 +332,7 @@ switch (command) {
 		toggleThoughts(args[0] ?? '');
 		break;
 	case 'thoughts':
-		thoughts();
+		await thoughts();
 		break;
 	case 'thoughts-read':
 		await readThoughts();
@@ -338,9 +340,12 @@ switch (command) {
 	case 'thoughts-save':
 		await saveThoughts(args[0] ?? '');
 		break;
-	case 'capture':
-		render(<Capture client={new Client(apiUrl(), apiHeaders())} />);
+	case 'capture': {
+		const client = new Client(apiUrl(), apiHeaders());
+		await takeInstanceColour(client);
+		render(<Capture client={client} />);
 		break;
+	}
 	case 'backup':
 		if (!args[0]) throw new Error('todos backup needs a folder to copy into');
 		// A hosted home's local file stopped changing when it moved to the
@@ -350,4 +355,11 @@ switch (command) {
 	default:
 		console.log(usage);
 		process.exitCode = command === 'help' || command === '--help' ? 0 : 1;
+}
+
+// Draws in the Instance's accent colour, read once as the popup or Thoughts
+// starts. If todos cannot be reached it stays blue, and the work goes on.
+async function takeInstanceColour(client: Client): Promise<void> {
+	const found = await client.settings().catch(() => null);
+	if (found) applyAccentColour(found.accentColour);
 }
