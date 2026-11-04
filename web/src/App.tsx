@@ -848,6 +848,21 @@ export function App() {
 	};
 	const lifted = dragging.length ? known.current.get(dragging[0]!) : undefined;
 
+	// An open Task, the same in a list and in a Thread on the Threads page.
+	const detail = (task: Task) => (
+		<TaskDetail
+			key={task.id}
+			task={task}
+			threads={threads}
+			order={order}
+			onTurnIntoThread={parentId => void turnIntoThread(task, parentId)}
+			onEdit={patch => (patch.when !== undefined ? when([task.id], patch) : edit([task.id], patch))}
+			onTick={() => tick([task.id])}
+			onDrop={() => drop([task.id])}
+			onClose={() => setOpenId(null)}
+		/>
+	);
+
 	// Shows a change to a Thread at once, then saves it.
 	const editThread = (id: string, edit: MyEdit) => {
 		setThreads(ts => ts.map(t => (t.id === id ? {...t, ...edit} : t)));
@@ -1085,7 +1100,7 @@ export function App() {
 							</div>
 						</header>
 						{view === 'threads' ? (
-							<ThreadsPage threads={threads} tasks={tasks} selectedId={threadId} onSelect={setThreadId} opened={opened} onOpened={setOpened} onTick={id => tick([id])} onEdit={editThread} onCreate={createThread} onMove={moveThread} onAddTask={draft => void addTask(draft)} order={order} findRequest={threadFind} />
+							<ThreadsPage threads={threads} tasks={tasks} selectedId={threadId} onSelect={setThreadId} opened={opened} onOpened={setOpened} onTick={id => tick([id])} onEdit={editThread} onCreate={createThread} onMove={moveThread} onAddTask={draft => void addTask(draft)} order={order} findRequest={threadFind} openTask={{id: openId, open: setOpenId, detail}} />
 						) : (
 							<main
 								ref={body}
@@ -1137,19 +1152,7 @@ export function App() {
 														</button>
 													</h2>
 												) : openId === row.task.id ? (
-													<TaskDetail
-														key={row.task.id}
-														task={row.task}
-														threads={threads}
-														order={order}
-														onTurnIntoThread={parentId => void turnIntoThread(row.task, parentId)}
-														onEdit={patch =>
-															patch.when !== undefined ? when([row.task.id], patch) : edit([row.task.id], patch)
-														}
-														onTick={() => tick([row.task.id])}
-														onDrop={() => drop([row.task.id])}
-														onClose={() => setOpenId(null)}
-													/>
+													detail(row.task)
 												) : (
 													<TaskRow
 														key={row.task.id}

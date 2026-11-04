@@ -53,8 +53,12 @@ function Tags({thread, view}: {thread: Thread; view: PageView}) {
 	);
 }
 
-// A Thread's open linked Tasks, which can be ticked off as in any list, and
-// a way to add one. One ticked here stays, struck through, until another
+// The Task open in place of its row. The lists and the Threads page share
+// it, so an open Task works and closes the same way everywhere.
+export type OpenTask = {id: string | null; open: (id: string) => void; detail: (task: Task) => ReactNode};
+
+// A Thread's open linked Tasks, which can be ticked off as in any list,
+// opened with a click or a tap, and a way to add one. One ticked here stays, struck through, until another
 // Thread is picked, so a second click opens it again.
 function LinkedTasks({
 	thread,
@@ -62,23 +66,26 @@ function LinkedTasks({
 	tasks,
 	onTick,
 	onAdd,
+	openTask,
 }: {
 	thread: Thread;
 	threads: Thread[];
 	tasks: Task[];
 	onTick: (id: string) => void;
 	onAdd: (draft: Draft) => void;
+	openTask: OpenTask;
 }) {
 	const [ticked, setTicked] = useState<Map<string, Task>>(new Map());
 	const [adding, setAdding] = useState(false);
-	const shown = [...tasks.filter(t => t.ended === 'not_ended' && !ticked.has(t.id)), ...ticked.values()].sort((a, b) => a.position - b.position);
+	const shown = [...tasks.filter(t => (t.ended === 'not_ended' || t.id === openTask.id) && !ticked.has(t.id)), ...ticked.values()].sort((a, b) => a.position - b.position);
 	return (
 		<section className="flex flex-col">
 			<h3 className="mb-1 text-xs font-medium text-muted-foreground">Tasks</h3>
 			{shown.map(task => {
 				const done = ticked.has(task.id);
+				if (openTask.id === task.id) return <Fragment key={task.id}>{openTask.detail(task)}</Fragment>;
 				return (
-					<div key={task.id} className="flex items-center gap-3 py-1.5">
+					<div key={task.id} data-task={task.id} className="flex cursor-default items-center gap-3 py-1.5" onClick={e => !(e.target as Element).closest('button') && openTask.open(task.id)}>
 						<Checkbox
 							checked={done}
 							onCheckedChange={() => {
@@ -193,7 +200,9 @@ function Details({
 	order,
 	onOpen,
 	childThreads,
+	openTask,
 }: {
+	openTask: OpenTask;
 	onAddTask: (draft: Draft) => void;
 	order: Belonging[];
 	onOpen?: () => void;
@@ -360,7 +369,7 @@ function Details({
 				{notesOpen && <Field value={thread.notes} placeholder="The full detail" multiline className="min-h-24" onSave={notes => onEdit({notes})} />}
 			</section>
 			{childThreads}
-			<LinkedTasks thread={thread} threads={threads} tasks={tasks.filter(t => t.threadId === thread.id)} onTick={onTick} onAdd={onAddTask} />
+			<LinkedTasks thread={thread} threads={threads} tasks={tasks.filter(t => t.threadId === thread.id)} onTick={onTick} onAdd={onAddTask} openTask={openTask} />
 		</div>
 	);
 }
@@ -411,7 +420,9 @@ export function ThreadsPage({
 	onAddTask,
 	order,
 	findRequest,
+	openTask,
 }: {
+	openTask: OpenTask;
 	// Counts up each time the phone's search button asks for the finder.
 	findRequest: number;
 	onAddTask: (draft: Draft) => void;
@@ -653,6 +664,7 @@ export function ThreadsPage({
 			onWhen={when => setWhen(thread, when)}
 			onEnd={how => end(thread, how)}
 			onAddTask={onAddTask}
+			openTask={openTask}
 			order={order}
 			onMoveTo={parentId => moveTo(thread, parentId)}
 			{...extra}
