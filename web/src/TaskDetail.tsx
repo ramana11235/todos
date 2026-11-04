@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {BoxIcon, FlagIcon, MoreHorizontalIcon, NetworkIcon, PlusIcon, SplitIcon} from 'lucide-react';
+import {BoxIcon, FlagIcon, ListChecksIcon, MoreHorizontalIcon, NetworkIcon, SplitIcon} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {Button} from '@/components/ui/button';
 import {Checkbox} from '@/components/ui/checkbox';
@@ -166,7 +166,7 @@ export function TaskDetail({
 			)}
 			<div className="flex flex-wrap items-center gap-1 pl-5 max-md:pl-0">
 				<Popover open={whenOpen} onOpenChange={setWhenOpen}>
-					<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
+					<PopoverTrigger render={<Button variant="ghost" size="sm" aria-label="When" />}>
 						<WhenIcon data-icon="inline-start" style={{color: whenColour}} />
 						{whenLabel(task)}
 					</PopoverTrigger>
@@ -181,15 +181,8 @@ export function TaskDetail({
 					</PopoverContent>
 				</Popover>
 				<Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
-					<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
-						{task.deadline.kind === 'by_day' ? (
-							<Deadline day={task.deadline.day} />
-						) : (
-							<>
-								<FlagIcon data-icon="inline-start" />
-								Deadline
-							</>
-						)}
+					<PopoverTrigger render={<Button variant="ghost" size={task.deadline.kind === 'by_day' ? 'sm' : 'icon-sm'} aria-label="Deadline" />}>
+						{task.deadline.kind === 'by_day' ? <Deadline day={task.deadline.day} /> : <FlagIcon />}
 					</PopoverTrigger>
 					<PopoverContent className="w-auto p-1" align="start">
 						<DeadlinePicker
@@ -201,70 +194,73 @@ export function TaskDetail({
 						/>
 					</PopoverContent>
 				</Popover>
-				<Popover open={threadOpen} onOpenChange={setThreadOpen}>
-					<PopoverTrigger render={<Button variant="ghost" size="sm" className="max-w-64" />}>
-						<NetworkIcon data-icon="inline-start" />
-						<span className="truncate">{thread ? thread.title : 'Thread'}</span>
-					</PopoverTrigger>
-					<PopoverContent className="w-80 p-1.5" align="start">
-						<ThreadPicker
-							threads={threads}
-							first="None"
-							start={task.threadId}
-							onPick={threadId => {
-								// A Task links to one Thread, project or area at most.
-								onEdit(threadId ? {threadId, belongs: {kind: 'none'}} : {threadId});
-								setThreadOpen(false);
-							}}
-						/>
-					</PopoverContent>
-				</Popover>
-				<Popover open={belongsOpen} onOpenChange={setBelongsOpen}>
-					<PopoverTrigger render={<Button variant="ghost" size="sm" className="max-w-64" />}>
-						<BoxIcon data-icon="inline-start" />
-						<span className="truncate">{belongingLabel(task.belongs, order) ?? 'Project'}</span>
-					</PopoverTrigger>
-					<PopoverContent className="w-80 p-1.5" align="start">
-						<BelongsPicker
-							order={order}
-							start={task.belongs}
-							onPick={belongs => {
-								onEdit(belongs.kind === 'none' ? {belongs} : {belongs, threadId: null});
-								setBelongsOpen(false);
-							}}
-						/>
-					</PopoverContent>
-				</Popover>
-				<Popover open={turnOpen} onOpenChange={setTurnOpen}>
-					<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
-						<SplitIcon data-icon="inline-start" />
-						Turn into Thread
-					</PopoverTrigger>
-					<PopoverContent className="w-80 p-1.5" align="start">
-						<p className="px-2 pt-1 pb-1 text-xs font-medium text-muted-foreground">Put the new Thread in</p>
-						<ThreadPicker
-							threads={threads}
-							first="Top level"
-							start={task.threadId}
-							onPick={parentId => {
-								setTurnOpen(false);
-								onTurnIntoThread(parentId);
-							}}
-						/>
-					</PopoverContent>
-				</Popover>
-				{steps.length === 0 && (
-					<Button variant="ghost" size="sm" onClick={() => startDraft(0)}>
-						<PlusIcon data-icon="inline-start" />
-						Checklist
-					</Button>
-				)}
+				<Button variant="ghost" size="icon-sm" aria-label="Checklist" onClick={() => startDraft(steps.length)}>
+					<ListChecksIcon />
+				</Button>
+				{/* Everything else is in the menu, so an open Task stays calm. The
+				    pickers the menu opens hang from this spot beside it. */}
+				<span className="relative ml-auto">
+					<Popover open={threadOpen} onOpenChange={setThreadOpen}>
+						<PopoverTrigger render={<span className="absolute right-0 bottom-0 size-0" />} />
+						<PopoverContent className="w-80 p-1.5" align="end">
+							<ThreadPicker
+								threads={threads}
+								first="None"
+								start={task.threadId}
+								onPick={threadId => {
+									onEdit(threadId ? {threadId, belongs: {kind: 'none'}} : {threadId});
+									setThreadOpen(false);
+								}}
+							/>
+						</PopoverContent>
+					</Popover>
+					<Popover open={belongsOpen} onOpenChange={setBelongsOpen}>
+						<PopoverTrigger render={<span className="absolute right-0 bottom-0 size-0" />} />
+						<PopoverContent className="w-80 p-1.5" align="end">
+							<BelongsPicker
+								order={order}
+								start={task.belongs}
+								onPick={belongs => {
+									onEdit(belongs.kind === 'none' ? {belongs} : {belongs, threadId: null});
+									setBelongsOpen(false);
+								}}
+							/>
+						</PopoverContent>
+					</Popover>
+					<Popover open={turnOpen} onOpenChange={setTurnOpen}>
+						<PopoverTrigger render={<span className="absolute right-0 bottom-0 size-0" />} />
+						<PopoverContent className="w-80 p-1.5" align="end">
+							<p className="px-2 pt-1 pb-1 text-xs font-medium text-muted-foreground">Put the new Thread in</p>
+							<ThreadPicker
+								threads={threads}
+								first="Top level"
+								start={task.threadId}
+								onPick={parentId => {
+									setTurnOpen(false);
+									onTurnIntoThread(parentId);
+								}}
+							/>
+						</PopoverContent>
+					</Popover>
+				</span>
 				<DropdownMenu>
-					<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="More" />}>
+					<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More" />}>
 						<MoreHorizontalIcon />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						<DropdownMenuGroup>
+							<DropdownMenuItem onClick={() => setThreadOpen(true)}>
+								<NetworkIcon />
+								{thread ? 'Change Thread' : 'Link to a Thread'}
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => setBelongsOpen(true)}>
+								<BoxIcon />
+								{task.belongs.kind === 'none' ? 'Put in a project or area' : 'Change project or area'}
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => setTurnOpen(true)}>
+								<SplitIcon />
+								Turn into Thread
+							</DropdownMenuItem>
 							{list !== 'inbox' && <DropdownMenuItem onClick={() => onEdit({when: {kind: 'inbox'}})}>Move to Inbox</DropdownMenuItem>}
 							<DropdownMenuItem onClick={onDrop}>Drop</DropdownMenuItem>
 						</DropdownMenuGroup>

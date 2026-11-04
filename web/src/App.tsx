@@ -1089,6 +1089,10 @@ export function App() {
 						<header className="flex items-center justify-between px-3 pt-3 md:hidden">
 							<SidebarTrigger />
 							<div className="flex items-center gap-1">
+							{/* The phone has no Alt+C, so capture is a button on every page. */}
+							<Button variant="ghost" size="icon-sm" onClick={() => setCapturing(true)} aria-label="Capture into the Inbox">
+								<InboxIcon />
+							</Button>
 							<Button variant="ghost" size="icon-sm" onClick={startFind} aria-label="Find">
 								<SearchIcon />
 							</Button>
