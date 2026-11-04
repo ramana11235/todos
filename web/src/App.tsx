@@ -355,8 +355,14 @@ export function App() {
 		lastHash.current = hash;
 		if (window.location.hash === hash) return;
 		const picking = !phone && view === 'threads' && last.startsWith('#threads') && !last.endsWith('/page') && !opened;
-		if (!window.location.hash || picking) window.history.replaceState(null, '', hash);
-		else window.history.pushState(null, '', hash);
+		if (!window.location.hash || picking) return void window.history.replaceState(null, '', hash);
+		// Safari's back swipe shows a picture of the page as it was when the
+		// step was added, so on the phone the step waits for the sidebar to
+		// finish closing.
+		const push = () => window.location.hash !== hash && window.history.pushState(null, '', hash);
+		if (!document.querySelector('[data-mobile="true"][data-slot="sidebar"]')) return void push();
+		window.addEventListener('sidebar-closed', push, {once: true});
+		return () => window.removeEventListener('sidebar-closed', push);
 	}, [hash]);
 	useEffect(() => {
 		const onBack = () => {

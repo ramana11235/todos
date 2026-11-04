@@ -10,13 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -24,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { PanelLeftIcon } from "lucide-react"
+import { Drawer } from "@base-ui/react/drawer"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -185,34 +179,14 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet
+      <PhoneSidebar
         open={openMobile}
-        onOpenChange={(open, details) => {
-          if (!open && details.reason === "escape-key" && escapeEndsDrag?.(details.event)) return details.cancel()
-          setOpenMobile(open)
-        }}
-        {...props}
+        setOpen={setOpenMobile}
+        escapeEndsDrag={escapeEndsDrag}
+        dir={dir}
       >
-        <SheetContent
-          dir={dir}
-          data-sidebar="sidebar"
-          data-slot="sidebar"
-          data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
-          side={side}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
-      </Sheet>
+        {children}
+      </PhoneSidebar>
     )
   }
 
@@ -731,4 +705,134 @@ export {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
+}
+
+
+// On the phone the sidebar is a drawer from the left that follows the
+// finger, both when it is swiped open from anywhere on the page and when it
+// is swiped closed.
+function PhoneSidebar({
+  open,
+  setOpen,
+  escapeEndsDrag,
+  dir,
+  children,
+}: {
+  open: boolean
+  setOpen: (open: boolean) => void
+  escapeEndsDrag?: (event: Event) => boolean
+  dir?: string
+  children: React.ReactNode
+}) {
+  const popup = React.useRef<HTMLDivElement | null>(null)
+  const backdrop = React.useRef<HTMLDivElement | null>(null)
+  // How far the finger has pulled the sidebar out, while it is following.
+  const pulled = React.useRef<number | null>(null)
+  const place = () => {
+    const dx = pulled.current
+    const el = popup.current
+    if (dx === null || !el) return
+    const width = el.offsetWidth
+    el.style.transition = "none"
+    el.style.transform = `translateX(${Math.min(0, dx - width)}px)`
+    if (backdrop.current) {
+      backdrop.current.style.transition = "none"
+      backdrop.current.style.opacity = String(0.4 * Math.min(1, dx / width))
+    }
+  }
+  const letGo = (keep: boolean) => {
+    pulled.current = null
+    for (const el of [popup.current, backdrop.current]) el?.style.removeProperty("transition")
+    popup.current?.style.removeProperty("transform")
+    backdrop.current?.style.removeProperty("opacity")
+    if (!keep) setOpen(false)
+  }
+  // A right swipe that starts anywhere opens the sidebar once it is clearly
+  // sideways. Safari keeps the strip at the very edge for its back swipe.
+  const isOpen = React.useRef(open)
+  isOpen.current = open
+  React.useEffect(() => {
+    let start: {x: number; y: number; at: number} | null = null
+    let last = {x: 0, at: 0, speed: 0}
+    const down = (e: TouchEvent) => {
+      const t = e.touches[0]
+      // Once open, the drawer's own swipe closes it, and nothing opens it
+      // over a box such as Capture.
+      if (isOpen.current || document.querySelector('[role="dialog"]')) return void (start = null)
+      start = e.touches.length === 1 && t ? {x: t.clientX, y: t.clientY, at: Date.now()} : null
+    }
+    const move = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (!start || !t) return
+      const dx = t.clientX - start.x
+      const dy = t.clientY - start.y
+      if (pulled.current !== null) {
+        e.preventDefault()
+        const now = Date.now()
+        last = {x: t.clientX, at: now, speed: (t.clientX - last.x) / Math.max(1, now - last.at)}
+        pulled.current = Math.max(0, dx)
+        return place()
+      }
+      // A finger held still first is a long press for dragging a Task.
+      if (Math.abs(dy) > 12 || dx < -12 || Date.now() - start.at > 280) return void (start = null)
+      if (dx > 12 && dx > Math.abs(dy) * 2) {
+        e.preventDefault()
+        last = {x: t.clientX, at: Date.now(), speed: 0}
+        pulled.current = dx
+        setOpen(true)
+      }
+    }
+    const up = () => {
+      if (pulled.current === null) return
+      const width = popup.current?.offsetWidth ?? 288
+      // Past a third of the way, or flicked open, it opens; else it goes back.
+      // A finger that stopped before letting go did not flick.
+      const flicked = Date.now() - last.at < 100 && last.speed > 0.4
+      letGo(pulled.current > width / 3 || flicked)
+    }
+    document.addEventListener("touchstart", down, {passive: true})
+    document.addEventListener("touchmove", move, {passive: false})
+    document.addEventListener("touchend", up)
+    document.addEventListener("touchcancel", up)
+    return () => {
+      document.removeEventListener("touchstart", down)
+      document.removeEventListener("touchmove", move)
+      document.removeEventListener("touchend", up)
+      document.removeEventListener("touchcancel", up)
+    }
+  }, [setOpen])
+  return (
+    <Drawer.Root
+      swipeDirection="left"
+      open={open}
+      onOpenChange={(next, details) => {
+        if (!next && details.reason === "escape-key" && escapeEndsDrag?.(details.event)) return details.cancel()
+        setOpen(next)
+      }}
+      onOpenChangeComplete={next => {
+        if (!next) window.dispatchEvent(new Event("sidebar-closed"))
+      }}
+    >
+      <Drawer.Portal>
+        <Drawer.Backdrop ref={backdrop} className="fixed inset-0 z-50 bg-black opacity-[calc(0.4*(1-var(--drawer-swipe-progress)))] transition-opacity duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]" />
+        <Drawer.Viewport className="fixed inset-0 z-50 flex items-stretch justify-start">
+          <Drawer.Popup
+            ref={el => {
+              popup.current = el
+              place()
+            }}
+            dir={dir}
+            data-sidebar="sidebar"
+            data-slot="sidebar"
+            data-mobile="true"
+            className="h-full w-(--sidebar-width) max-w-[calc(100vw-3rem)] border-r bg-sidebar text-sidebar-foreground outline-none shadow-lg [transform:translateX(var(--drawer-swipe-movement-x))] transition-transform duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:select-none data-starting-style:[transform:translateX(-100%)] data-ending-style:[transform:translateX(-100%)] data-ending-style:duration-[calc(var(--drawer-swipe-strength)*400ms)]"
+            style={{"--sidebar-width": SIDEBAR_WIDTH_MOBILE} as React.CSSProperties}
+          >
+            <Drawer.Title className="sr-only">Sidebar</Drawer.Title>
+            <div className="flex h-full w-full flex-col">{children}</div>
+          </Drawer.Popup>
+        </Drawer.Viewport>
+      </Drawer.Portal>
+    </Drawer.Root>
+  )
 }
