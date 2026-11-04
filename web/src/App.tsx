@@ -3,7 +3,7 @@ import {
 	closestCenter,
 	DndContext,
 	DragOverlay,
-	PointerSensor,
+	MouseSensor,
 	pointerWithin,
 	TouchSensor,
 	useDroppable,
@@ -737,7 +737,9 @@ export function App() {
 	});
 
 	const sensors = useSensors(
-		useSensor(PointerSensor, {activationConstraint: {distance: 6}}),
+		// The mouse sensor ignores fingers, so on a phone only a long press
+		// starts a drag and a swipe always scrolls.
+		useSensor(MouseSensor, {activationConstraint: {distance: 6}}),
 		useSensor(TouchSensor, {activationConstraint: {delay: 300, tolerance: 8}}),
 	);
 	const dragOn = useRef(false);

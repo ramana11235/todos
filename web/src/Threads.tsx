@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
-import {closestCenter, DndContext, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent} from '@dnd-kit/core';
+import {closestCenter, DndContext, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent} from '@dnd-kit/core';
 import {SortableContext, useSortable, verticalListSortingStrategy} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {ArchiveIcon, BookCheckIcon, BoxIcon, CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, FolderInputIcon, MaximizeIcon, NetworkIcon, PlusIcon, RotateCcwIcon, XIcon, type LucideIcon} from 'lucide-react';
@@ -623,7 +623,9 @@ export function ThreadsPage({
 		if (other) onMove(selected.id, selected.parentId, othersAt(selected.id, other) + (by > 0 ? 1 : 0));
 	};
 	const sensors = useSensors(
-		useSensor(PointerSensor, {activationConstraint: {distance: 6}}),
+		// The mouse sensor ignores fingers, so on a phone only a long press
+		// starts a drag and a swipe always scrolls.
+		useSensor(MouseSensor, {activationConstraint: {distance: 6}}),
 		useSensor(TouchSensor, {activationConstraint: {delay: 300, tolerance: 8}}),
 	);
 	const onDragEnd = ({active, over}: DragEndEvent) => {
