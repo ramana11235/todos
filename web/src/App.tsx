@@ -478,7 +478,20 @@ export function App() {
 			setTimeout(() => setStay(s => new Set([...s].filter(id => !ending.includes(id)))), 500);
 		}
 		if (message) undoToast(message, undo);
-		void Promise.all(patches.map(([id, patch]) => client.editTask(id, patch))).then(refresh, refresh);
+		// A change that did not save goes back to how it was, because a poll
+		// that finds nothing changed would leave it looking saved.
+		const before = new Map(mine.map(([id]) => [id, known.current.get(id)!]));
+		void Promise.allSettled(patches.map(([id, patch]) => client.editTask(id, patch))).then(results => {
+			const failed = new Map(patches.flatMap(([id], i) => (results[i]!.status === 'rejected' && before.has(id) ? [[id, before.get(id)!] as const] : [])));
+			if (failed.size) {
+				const back = (t: Task) => failed.get(t.id) ?? t;
+				setTasks(ts => ts.map(back));
+				setEnded(ts => ts.map(back));
+				setKept(k => new Map([...k].map(([id, t]) => [id, back(t)])));
+				toast(failed.size === 1 ? 'Could not save the change' : `Could not save ${count(failed.size)}`);
+			}
+			return refresh();
+		});
 	};
 
 	const undo = () => {
