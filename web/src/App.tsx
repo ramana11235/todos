@@ -64,11 +64,12 @@ import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
 import {TaskFinder} from './TaskFinder';
 import {Settings} from './Settings';
+import {counted, useSettledMark} from './settled';
 
 // A phone on a slow connection can take a while to answer. Giving up early
 // would report a change as failed after it was saved, and trying again
 // would make it twice.
-const client = new Client('', {}, 15_000);
+const client = counted(new Client('', {}, 15_000));
 const pollMs = 1500;
 
 // What the main column can show: one of the lists, the Logbook or the
@@ -175,6 +176,7 @@ function ViewItem({view, current, count, onPick}: {view: View; current: View | '
 }
 
 export function App() {
+	useSettledMark();
 	const [tasks, setTasks] = useState<Task[]>([]);
 	const [ended, setEnded] = useState<Task[]>([]);
 	const [threads, setThreads] = useState<Thread[]>([]);

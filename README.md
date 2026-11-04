@@ -174,4 +174,7 @@ Inside a Thread, `Alt+h` goes back to Home. On Home and in every Thread, `Alt+x`
 npm run watch      # rebuild on every change, so a running todos updates live
 npm test
 npm run typecheck
+npm run test:browser
 ```
+
+`npm run test:browser` builds the web app and drives it in Chromium at a laptop size and in WebKit as an iPhone with touch. Each test starts its own Instance on a new temporary SQLite file and a port of its own, so it never touches your data. The browsers are installed once with `npx playwright install chromium webkit`, and only developing todos needs them.

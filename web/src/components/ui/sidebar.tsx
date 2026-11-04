@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip"
 import { PanelLeftIcon } from "lucide-react"
 import { Drawer } from "@base-ui/react/drawer"
+import { begin } from "@/settled"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -761,6 +762,15 @@ function PhoneSidebar({
   // sideways pull moves nothing but the sidebar.
   const isOpen = React.useRef(open)
   isOpen.current = open
+  // The page is not settled while the sidebar slides, because closing it is
+  // what adds the page's history step.
+  const sliding = React.useRef<(() => void) | null>(null)
+  const was = React.useRef(open)
+  React.useLayoutEffect(() => {
+    if (was.current !== open) sliding.current ??= begin()
+    was.current = open
+  }, [open])
+  React.useEffect(() => () => sliding.current?.(), [])
   React.useEffect(() => {
     let start: {x: number; y: number; at: number} | null = null
     let last = {x: 0, at: 0, speed: 0}
@@ -821,6 +831,8 @@ function PhoneSidebar({
       }}
       onOpenChangeComplete={next => {
         if (!next) window.dispatchEvent(new Event("sidebar-closed"))
+        sliding.current?.()
+        sliding.current = null
       }}
     >
       <Drawer.Portal>
