@@ -167,9 +167,11 @@ export function createHandler(
 		if (request.method !== 'GET' && !request.headers.get('content-type')?.startsWith('application/json')) {
 			return json(415, {error: 'Changes must be sent as application/json'});
 		}
-		const route = find(request.method, path);
-		if (!route) return json(404, {error: `Nothing at ${request.method} ${path}`});
-		const {status, body} = await respond(async () => route.handler(route.params, request.method === 'GET' ? {} : await readJson(request)));
+		const {status, body} = await respond(async () => {
+			const route = find(request.method, path);
+			if (!route) throw new ThreadError('not_found', `Nothing at ${request.method} ${path}`);
+			return route.handler(route.params, request.method === 'GET' ? {} : await readJson(request));
+		});
 		return json(status, body);
 	};
 	// Every route as "METHOD /pattern", so a test can check each has a client.
@@ -182,6 +184,8 @@ async function respond(run: () => Promise<unknown>): Promise<BatchResult> {
 	} catch (error) {
 		if (error instanceof ThreadError) return {status: error.code === 'not_found' ? 404 : 400, body: {error: error.message}};
 		if (error instanceof SyntaxError) return {status: 400, body: {error: 'The request body is not valid JSON'}};
+		// A path with a broken percent code, such as %E0, cannot be read.
+		if (error instanceof URIError) return {status: 400, body: {error: 'The address is not valid'}};
 		return {status: 500, body: {error: String(error)}};
 	}
 }

@@ -2,7 +2,7 @@ import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import type {AddressInfo} from 'node:net';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import type {Server} from 'node:http';
+import {request, type Server} from 'node:http';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {createApi} from '../src/api/server.js';
 import {ApiError, Client} from '../src/client/client.js';
@@ -179,6 +179,28 @@ describe('changes sent from another website', () => {
 		const response = await fetch(url, {method: 'POST', headers: {'content-type': type}, body});
 		expect(response.status).toBe(415);
 		expect(await client.tasks()).toEqual([]);
+	});
+
+	// Sends a GET with the Host header given, which fetch does not let a
+	// test choose, and answers with its status.
+	const statusOf = (path: string, host?: string) =>
+		new Promise<number>((resolve, reject) => {
+			const port = (server.address() as AddressInfo).port;
+			request({host: '127.0.0.1', port, path, headers: {host: host ?? `127.0.0.1:${port}`}}, response => {
+				response.resume();
+				resolve(response.statusCode!);
+			}).on('error', reject).end();
+		});
+
+	it.each(['/api/threads/%E0', '/%E0'])('answers %s, whose percent code is broken, with 400 and keeps running', async path => {
+		expect(await statusOf(path)).toBe(400);
+		expect(await client.threads()).toEqual([]);
+	});
+
+	it('refuses a request sent under another host name, and answers one sent to localhost', async () => {
+		const port = (server.address() as AddressInfo).port;
+		expect(await statusOf('/api/threads', `rebound.example:${port}`)).toBe(403);
+		expect(await statusOf('/api/threads', `localhost:${port}`)).toBe(200);
 	});
 
 	// Hooks from an older build call this route with no body when a prompt

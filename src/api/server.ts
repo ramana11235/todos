@@ -3,6 +3,7 @@
 
 import {readFile} from 'node:fs/promises';
 import {createServer, type IncomingMessage, type Server, type ServerResponse} from 'node:http';
+import type {AddressInfo} from 'node:net';
 import {extname, join, normalize} from 'node:path';
 import type {Projects} from '../core/projects.js';
 import type {InstanceSettings} from '../core/settings.js';
@@ -23,13 +24,23 @@ export function createApi(
 	{build = null, home = null, web = null}: {build?: string | null; home?: string | null; web?: string | null} = {},
 ): Server {
 	const handle = createHandler(threads, tasks, thoughts, projects, settings, {build, home, pid: process.pid});
-	return createServer(async (request, response) => {
+	const server = createServer(async (request, response) => {
+		// Only a request sent to the laptop itself is answered. A web page can
+		// make its own name point at 127.0.0.1 and then reach this API as if
+		// it were its own site, but its requests still carry that name.
+		const port = (server.address() as AddressInfo).port;
+		if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(request.headers.host ?? '')) {
+			response.writeHead(403, {'content-type': 'application/json'});
+			response.end(JSON.stringify({error: 'The local API only answers requests sent to 127.0.0.1 or localhost'}));
+			return;
+		}
 		const path = new URL(request.url ?? '/', 'http://localhost').pathname;
 		if (web && request.method === 'GET' && !path.startsWith('/api/')) return serveFile(response, web, path);
 		const answer = await handle(await toRequest(request));
 		response.writeHead(answer.status, Object.fromEntries(answer.headers));
 		response.end(Buffer.from(await answer.arrayBuffer()));
 	});
+	return server;
 }
 
 async function toRequest(request: IncomingMessage): Promise<Request> {
@@ -59,7 +70,15 @@ const types: Record<string, string> = {
 // Any path that is not a file is the page itself, which works out what to
 // show. Paths are kept inside the folder.
 async function serveFile(response: ServerResponse, web: string, path: string): Promise<void> {
-	const file = normalize(join(web, decodeURIComponent(path)));
+	let decoded;
+	try {
+		decoded = decodeURIComponent(path);
+	} catch {
+		response.writeHead(400, {'content-type': 'application/json'});
+		response.end(JSON.stringify({error: 'The address is not valid'}));
+		return;
+	}
+	const file = normalize(join(web, decoded));
 	for (const candidate of file.startsWith(join(web, '/')) ? [file, join(web, 'index.html')] : [join(web, 'index.html')]) {
 		try {
 			const body = await readFile(candidate);

@@ -13,6 +13,8 @@ export default defineConfig({
 	build: {outDir: resolve(import.meta.dirname, '../dist/web'), emptyOutDir: true},
 	server: {
 		fs: {allow: [resolve(import.meta.dirname, '..')]},
-		proxy: {'/api': process.env.TODOS_API_URL ?? `http://127.0.0.1:${process.env.TODOS_PORT ?? 7316}`},
+		// The local API only answers requests sent to its own address, so the
+		// proxy sends them under that name rather than the dev server's.
+		proxy: {'/api': {target: process.env.TODOS_API_URL ?? `http://127.0.0.1:${process.env.TODOS_PORT ?? 7316}`, changeOrigin: true}},
 	},
 });
