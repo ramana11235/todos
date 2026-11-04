@@ -54,6 +54,8 @@ The rest is the Threads page's own. A row that changes place glides there in 280
 
 ## Dragging
 
+Anything that can be dragged can be dropped on anything on screen that can hold it, and dropping it there makes it belong there, as choosing that place from its menu would. While it is over a place that can hold it, that place shows it will take it, and a place that cannot hold it shows nothing.
+
 Dragging uses the drag library's own timings, which are a little quicker than the rest: rows glide apart in 200ms and a dropped card settles in 250ms. On the phone a drag starts only after a long press, so a swipe always scrolls or opens the sidebar.
 
 - **Tasks:** the Task lifts out as a card under the pointer, with a count when other selected Tasks go with it. Its row stays behind at 40% to show where it will land, the other selected Tasks dim to 40% where they are, and the rows glide apart around it. Letting go in the list settles the card into that place. Letting go on a list in the sidebar moves the Task to that list, and it leaves the list I am in without yet travelling there. Esc, or letting go anywhere else, sends the card back to its row.
