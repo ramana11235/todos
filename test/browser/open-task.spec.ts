@@ -60,6 +60,14 @@ test.describe('an open Task', () => {
 		await settled(page);
 		expect((await todos.client.task(task.id)).belongs).toEqual({kind: 'project', id: project.id});
 	});
+
+	test('turning the open Task into a Thread from its menu makes a Thread of it', async ({page, todos, isMobile}) => {
+		const task = await openTask(page, todos, isMobile);
+		await fromMenu(page, task.id, 'Turn into Thread');
+		await page.locator('[data-slot="popover-content"]').getByRole('button', {name: 'Top level'}).click();
+		await settled(page);
+		expect((await todos.client.threads()).map(t => t.title)).toEqual(['Plant the beans']);
+	});
 });
 
 // The phone has no Alt+C, so a button at the top of every page captures.
@@ -77,4 +85,14 @@ test.describe('capture on the phone', () => {
 			expect(tasks.map(t => [t.title, t.when.kind])).toEqual([['Call the plumber', 'inbox']]);
 		});
 	}
+
+	test('leaving capture on the phone without pressing Enter adds nothing', async ({page, todos}) => {
+		await open(page, todos, 'today');
+		await page.getByRole('button', {name: 'Capture into the Inbox'}).click();
+		await page.getByRole('dialog', {name: 'Capture'}).getByPlaceholder('Capture').fill('Call the plumber');
+		await page.getByRole('dialog', {name: 'Capture'}).getByPlaceholder('Capture').blur();
+		await settled(page);
+		await expect(page.getByRole('dialog', {name: 'Capture'})).toHaveCount(0);
+		expect(await todos.client.tasks()).toEqual([]);
+	});
 });
