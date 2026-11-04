@@ -14,7 +14,7 @@ import {
 	type DragStartEvent,
 } from '@dnd-kit/core';
 import {SortableContext, verticalListSortingStrategy} from '@dnd-kit/sortable';
-import {ArchiveIcon, BookCheckIcon, CalendarDaysIcon, ChevronRightIcon, InboxIcon, LayersIcon, NetworkIcon, PlusIcon, SearchIcon, StarIcon, type LucideIcon} from 'lucide-react';
+import {ArchiveIcon, BookCheckIcon, CalendarDaysIcon, ChevronRightIcon, InboxIcon, LayersIcon, NetworkIcon, PlusIcon, SearchIcon, StarIcon, Trash2Icon, type LucideIcon} from 'lucide-react';
 import {toast} from 'sonner';
 import {cn} from '@/lib/utils';
 import {Button} from '@/components/ui/button';
@@ -74,11 +74,11 @@ const pollMs = 1500;
 
 // What the main column can show: one of the lists, the Logbook or the
 // Threads page.
-type View = List | 'logbook' | 'threads';
+type View = List | 'logbook' | 'trash' | 'threads';
 
 // The lists in the order every place shows them, then the Logbook and the
 // Threads page.
-const views: View[] = [...lists, 'logbook', 'threads'];
+const views: View[] = [...lists, 'logbook', 'trash', 'threads'];
 
 // Where I am, kept in the address after the #, such as #today,
 // #threads/<id>/page or #project/<id>, so Back, a reload and a saved link all
@@ -103,13 +103,19 @@ const icons: Record<View, [LucideIcon, string]> = {
 	anytime: [LayersIcon, 'var(--icon-mid)'],
 	someday: [ArchiveIcon, 'var(--icon-faint)'],
 	logbook: [BookCheckIcon, 'var(--icon-faint)'],
+	trash: [Trash2Icon, 'var(--icon-faint)'],
 	threads: [NetworkIcon, 'var(--icon-bright)'],
 };
 
-const viewNames: Record<View, string> = {...listNames, logbook: 'Logbook', threads: 'Threads'};
+const viewNames: Record<View, string> = {...listNames, logbook: 'Logbook', trash: 'Trash', threads: 'Threads'};
 
-// Upcoming is in date order and the Logbook in the order Tasks ended.
-const reorderable = (view: View) => view !== 'upcoming' && view !== 'logbook' && view !== 'threads';
+// The Logbook lists Done Tasks and the Trash Dropped ones, each in the order
+// they ended.
+const endedViews = {logbook: 'done', trash: 'dropped'} as const;
+const showsEnded = (view: View): view is keyof typeof endedViews => view in endedViews;
+
+// Upcoming is in date order, and the Logbook and the Trash in the order Tasks ended.
+const reorderable = (view: View) => view !== 'upcoming' && !showsEnded(view) && view !== 'threads';
 
 type Row = {kind: 'header'; label: string} | {kind: 'belonging'; belonging: Belonging} | {kind: 'thread'; thread: Thread; nested?: boolean} | {kind: 'task'; task: Task};
 
@@ -152,8 +158,8 @@ const count = (n: number) => (n === 1 ? 'task' : `${n} tasks`);
 
 function ViewItem({view, current, count, onPick}: {view: View; current: View | 'page'; count: number; onPick: (view: View) => void}) {
 	const {setOpenMobile} = useSidebar();
-	// Tasks dragged onto a list move there, and onto the Logbook are ticked
-	// off. Upcoming needs a Date and the Threads page is not a list, so
+	// Tasks dragged onto a list move there, onto the Logbook are ticked off,
+	// and onto the Trash are dropped. Upcoming needs a Date and the Threads page is not a list, so
 	// nothing can be dropped on them.
 	const {setNodeRef, isOver} = useDroppable({id: `list:${view}`, disabled: view === 'upcoming' || view === 'threads' || view === current});
 	const [Icon, colour] = icons[view];
@@ -244,7 +250,7 @@ export function App() {
 			setProjects(changes.projects);
 			setAreas(changes.areas);
 			setAccentColour(changes.settings.accentColour);
-			if (view === 'logbook') setEnded(await client.logbook());
+			if (showsEnded(view)) setEnded(await client.logbook());
 		} catch (error) {
 			// Once the Cloudflare Access sign-in runs out, Access answers with a
 			// redirect to its sign-in page, which reaches here as status 0.
@@ -257,7 +263,7 @@ export function App() {
 
 	// The Logbook is read when it opens, as well as after each change.
 	useEffect(() => {
-		if (view === 'logbook') void client.logbook().then(setEnded, () => {});
+		if (showsEnded(view)) void client.logbook().then(setEnded, () => {});
 	}, [view]);
 
 	// Only a page on screen asks for changes, since the hosted Instance counts
@@ -292,8 +298,8 @@ export function App() {
 			const open = threads.filter(t => t.ended === 'not_ended' && t.parentId === null && sameBelongs(t.belongs, shown));
 			return groupedByThread(here, threads, now, open);
 		}
-		if (view === 'logbook') {
-			const shown = [...ended.filter(t => !kept.has(t.id)), ...kept.values()];
+		if (showsEnded(view)) {
+			const shown = [...ended.filter(t => !kept.has(t.id) && t.ended === endedViews[view]), ...kept.values()];
 			shown.sort((a, b) => (b.endedAt ?? '').localeCompare(a.endedAt ?? ''));
 			return withHeadings(shown, t => (t.endedAt ? dayName(dayOf(new Date(t.endedAt))) : ''));
 		}
@@ -323,12 +329,12 @@ export function App() {
 	// What a poll compares with, as the page now shows it. The Logbook shows
 	// only ended Tasks, so nothing there can be ended elsewhere.
 	const onScreen = useRef<string[]>([]);
-	onScreen.current = view === 'logbook' ? [] : ids;
+	onScreen.current = showsEnded(view) ? [] : ids;
 	const keptNow = useRef(kept);
 	keptNow.current = kept;
 
 	const counts = useMemo(() => {
-		const c: Record<View, number> = {inbox: 0, today: 0, upcoming: 0, anytime: 0, someday: 0, logbook: 0, threads: 0};
+		const c: Record<View, number> = {inbox: 0, today: 0, upcoming: 0, anytime: 0, someday: 0, logbook: 0, trash: 0, threads: 0};
 		for (const t of tasks) c[listOf(t, now)]++;
 		return c;
 	}, [tasks, now]);
@@ -461,7 +467,7 @@ export function App() {
 		});
 		// A Task I end greys at once and stays where it is for half a second,
 		// so I see it done, before it glides to the bottom.
-		const ending = view === 'logbook' ? [] : mine.flatMap(([id, patch]) => (patch.ended !== undefined && patch.ended !== 'not_ended' ? [id] : []));
+		const ending = showsEnded(view) ? [] : mine.flatMap(([id, patch]) => (patch.ended !== undefined && patch.ended !== 'not_ended' ? [id] : []));
 		if (ending.length) {
 			setStay(s => new Set([...s, ...ending]));
 			setTimeout(() => setStay(s => new Set([...s].filter(id => !ending.includes(id)))), 500);
@@ -631,7 +637,7 @@ export function App() {
 	const startDraft = (): Draft => ({
 		title: '',
 		notes: '',
-		when: view === 'upcoming' ? {kind: 'on_day', day: addDays(today(), 1)} : {kind: view === 'logbook' || view === 'threads' ? 'anytime' : view},
+		when: view === 'upcoming' ? {kind: 'on_day', day: addDays(today(), 1)} : {kind: showsEnded(view) || view === 'threads' ? 'anytime' : view},
 		deadline: {kind: 'none'},
 		threadId: null,
 		belongs: shown,
@@ -731,7 +737,7 @@ export function App() {
 			else if (key === ' ' && one) setOpenId(o => (o ? null : one));
 			else if ((key === 'Backspace' || key === 'Delete') && chosen.length) drop(chosen);
 			else if (key === 'a') {
-				if (view === 'logbook') setCapturing(true);
+				if (showsEnded(view)) setCapturing(true);
 				else setAdding(true);
 			} else if (key === 'Tab') setView(views[(views.indexOf(view) + (e.shiftKey ? views.length - 1 : 1)) % views.length]!);
 			else if (key === 'Escape') {
@@ -836,6 +842,7 @@ export function App() {
 		if (target.startsWith('list:')) {
 			const to = target.slice('list:'.length) as View;
 			if (to === 'logbook') edit(moving, {ended: 'done'}, `Ticked off ${count(moving.length)}`);
+			else if (to === 'trash') drop(moving);
 			else when(moving, {when: {kind: to as Place}}, false);
 			return;
 		}
@@ -923,7 +930,7 @@ export function App() {
 
 	// A page takes the place of a list, and going back to a list closes it.
 	const openPage = (page: Page) => {
-		setView(view === 'threads' || view === 'logbook' ? 'anytime' : view);
+		setView(view === 'threads' || showsEnded(view) ? 'anytime' : view);
 		setShown(page);
 	};
 
@@ -983,7 +990,7 @@ export function App() {
 	const current: View | 'page' = shown.kind !== 'none' ? 'page' : view;
 	const isShown = (kind: Page['kind'], id: string) => shown.kind === kind && shown.id === id;
 	// The bar takes the place of the + button, which a phone has no room for beside it.
-	const bar = view !== 'logbook' && (chosen.length > 1 || (picking && chosen.length > 0));
+	const bar = !showsEnded(view) && (chosen.length > 1 || (picking && chosen.length > 0));
 
 	return (
 		<TooltipProvider>
@@ -1012,6 +1019,7 @@ export function App() {
 							<SidebarGroup>
 								<SidebarMenu>
 									<ViewItem view="logbook" current={current} count={0} onPick={setView} />
+									<ViewItem view="trash" current={current} count={0} onPick={setView} />
 								</SidebarMenu>
 							</SidebarGroup>
 							<SidebarGroup>
@@ -1084,7 +1092,7 @@ export function App() {
 							<Button variant="ghost" size="icon-sm" onClick={startFind} aria-label="Find">
 								<SearchIcon />
 							</Button>
-							{view !== 'logbook' && view !== 'threads' && (
+							{!showsEnded(view) && view !== 'threads' && (
 								<Button
 									variant="ghost"
 									size="sm"
@@ -1122,7 +1130,7 @@ export function App() {
 								)}
 								{/* The Logbook only opens Tasks again, so it has no menu or bar. On a
 								phone a long press drags, so there is no menu there either. */}
-								<ContextMenu disabled={view === 'logbook' || phone}>
+								<ContextMenu disabled={showsEnded(view) || phone}>
 									<ContextMenuTrigger data-column="list" className="flex flex-col">
 										<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 											{rows.map(row =>
@@ -1159,10 +1167,10 @@ export function App() {
 														task={row.task}
 														view={shown.kind !== 'none' ? 'page' : view}
 														away={away(row.task.id)}
-														dimmed={(view !== 'logbook' && row.task.ended !== 'not_ended') || (dragging.includes(row.task.id) && dragging[0] !== row.task.id)}
+														dimmed={(!showsEnded(view) && row.task.ended !== 'not_ended') || (dragging.includes(row.task.id) && dragging[0] !== row.task.id)}
 														selected={chosen.includes(row.task.id)}
 														renaming={renaming === row.task.id}
-														draggable={view !== 'logbook'}
+														draggable={!showsEnded(view)}
 														sortable={sortable}
 														onSelect={e => select(row.task.id, e)}
 														onOpen={() => setOpenId(row.task.id)}
@@ -1183,7 +1191,7 @@ export function App() {
 								size="icon-lg"
 								style={away()}
 								className="fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] rounded-full shadow-lg"
-								onClick={() => (view === 'logbook' ? setCapturing(true) : setAdding(true))}
+								onClick={() => (showsEnded(view) ? setCapturing(true) : setAdding(true))}
 								aria-label="New task"
 							>
 								<PlusIcon />

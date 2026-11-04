@@ -108,8 +108,12 @@ Steps inside a **Task**, each ticked off on its own. A step is not a **Task**: i
 _Avoid_: Subtasks
 
 **Logbook**:
-Where **Done** and **Dropped** **Tasks** are listed, most recent first, so nothing finished is lost from sight.
+Where **Done** **Tasks** are listed, most recent first, so nothing finished is lost from sight.
 _Avoid_: Archive, history
+
+**Trash**:
+Where **Dropped** **Tasks** are listed, most recent first, so one dropped by mistake can be found and opened again. It is never emptied, because nothing in todos is deleted.
+_Avoid_: Bin, deleted
 
 **Capture**:
 Recording a **Task** in a few seconds, at the moment it occurs, without deciding anything about it; a captured **Task** always lands in the **Inbox** with no **Thread**.
