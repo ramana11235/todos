@@ -21,6 +21,7 @@ One context: a single `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/a
 - I only move from one thread to another by going through Home. There is no shortcut from one session straight to another, and nothing that tempts me to jump, because switching should be a choice I make on purpose. This is about my attention. Sessions can still prompt each other. Inside a thread nothing shows the state of other threads, and Alt+h is the one way back to Home. See `docs/adr/0001-terminal-app-is-ink-inside-its-own-tmux-server.md`.
 - todos must run in two ways that behave the same: hosted in the cloud, and entirely on one laptop against a local SQLite file. The local way is also how todos is developed and tested before anything is deployed. Installing and setting up either way should be easy, so every design choice has to work for both.
 - Build in small slices, each of which can be tested and given feedback on its own.
+- Everything todos does can be checked by a test that passes or fails the same way every run. When something on screen is not settled the moment an action returns, the app says when it is, so a test reads a final result instead of waiting on time.
 
 ## Workflow
 
