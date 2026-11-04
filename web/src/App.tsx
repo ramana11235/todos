@@ -758,8 +758,8 @@ export function App() {
 		return () => window.removeEventListener('keydown', escape.watch, true);
 	}, [escape]);
 	// A project lands among the projects and area rows, and an area among
-	// the areas. For a Task, over the sidebar the list under the pointer
-	// wins; within the list, the nearest row.
+	// the areas. For a Task, over the sidebar the list, project or area under
+	// the pointer wins; within the list, the nearest row.
 	const collisions: CollisionDetection = args => {
 		const dragged = sortableOf(String(args.active.id)).kind;
 		const among = (keep: (kind: ReturnType<typeof sortableOf>['kind']) => boolean) =>
@@ -767,8 +767,9 @@ export function App() {
 		if (dragged === 'project') return closestCenter({...args, droppableContainers: among(kind => kind === 'project' || kind === 'head')});
 		if (dragged === 'area') return closestCenter({...args, droppableContainers: among(kind => kind === 'area')});
 		const tasks = among(kind => kind === 'other');
-		const lists = pointerWithin({...args, droppableContainers: tasks.filter(c => String(c.id).startsWith('list:'))});
-		return lists.length ? lists : closestCenter({...args, droppableContainers: tasks});
+		const places = [...tasks.filter(c => String(c.id).startsWith('list:')), ...among(kind => kind === 'project' || kind === 'head')];
+		const inSidebar = pointerWithin({...args, droppableContainers: places});
+		return inSidebar.length ? inSidebar : closestCenter({...args, droppableContainers: tasks});
 	};
 	const sidebar = sidebarRows(projects, areas);
 	// A plain click opens a project or area. On a project, cmd-click adds or
@@ -829,6 +830,9 @@ export function App() {
 		setDragging([]);
 		if (!over) return;
 		const target = String(over.id);
+		// Onto a project or area, as its menu would put them there.
+		const place = sortableOf(target);
+		if (place.kind === 'project' || place.kind === 'head') return actions(moving).belongs({kind: place.kind === 'head' ? 'area' : 'project', id: place.id});
 		if (target.startsWith('list:')) {
 			const to = target.slice('list:'.length) as View;
 			if (to === 'logbook') edit(moving, {ended: 'done'}, `Ticked off ${count(moving.length)}`);

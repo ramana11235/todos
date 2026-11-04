@@ -36,17 +36,19 @@ export function PageItem({page, title, active, picked = false, deadline = {kind:
 	onClick: (page: Page, e: MouseEvent) => void; handle?: object;
 }) {
 	const {setOpenMobile} = useSidebar();
-	const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
+	const {attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, active: drag} = useSortable({
 		id: sortableId(page.kind === 'area' ? 'head' : 'project', page.id),
 		disabled: page.kind === 'area' ? {draggable: true} : false,
 	});
+	// A Task dragged over it shows it will take the Task, as a list does.
+	const takesTask = isOver && drag !== null && sortableOf(String(drag.id)).kind === 'other';
 	const Icon = iconOf(page.kind);
 	return (
 		<SidebarMenuItem ref={setNodeRef} style={{transform: CSS.Translate.toString(transform), transition}} className={cn(isDragging && 'opacity-40')}>
 			<SidebarMenuButton
 				{...(page.kind === 'area' ? handle : {...attributes, ...listeners})}
 				isActive={active}
-				className={cn('touch-manipulation', page.kind === 'area' && 'font-semibold', picked && !active && 'bg-sidebar-accent/60')}
+				className={cn('touch-manipulation', page.kind === 'area' && 'font-semibold', picked && !active && 'bg-sidebar-accent/60', takesTask && 'ring-2 ring-primary')}
 				onClick={e => {
 					onClick(page, e);
 					if (!e.shiftKey && !e.metaKey && !e.ctrlKey) setOpenMobile(false);
