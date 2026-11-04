@@ -64,7 +64,7 @@ import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
 import {TaskFinder} from './TaskFinder';
 import {Settings} from './Settings';
-import {counted, useSettledMark} from './settled';
+import {begin, counted, useSettledMark} from './settled';
 
 // A phone on a slow connection can take a while to answer. Giving up early
 // would report a change as failed after it was saved, and trying again
@@ -426,13 +426,18 @@ export function App() {
 				const copy = pinned(was.copy, was.rect, 40);
 				void copy.animate([{top: `${was.rect.top}px`, height: `${was.rect.height}px`, opacity: 1}, {top: `${to.top}px`, height: `${to.height}px`, opacity: 0}], {duration: ms, easing: ease})
 					.finished.then(() => copy.remove());
-				row.animate([{marginBottom: `${was.space - to.height}px`}, {marginBottom: '0px'}], {duration: ms, easing: ease});
+				const closed = begin();
+				void row.animate([{marginBottom: `${was.space - to.height}px`}, {marginBottom: '0px'}], {duration: ms, easing: ease}).finished.then(closed, closed);
 			}
 			const from = openShown && rowHeights.current.get(openShown);
 			if (card.current && from) {
 				const grown = rowOf(card.current.id)!;
 				const {marginTop, marginBottom} = getComputedStyle(grown);
-				grown.animate([{height: `${from}px`, marginTop: '0px', marginBottom: '0px', overflow: 'hidden'}, {height: `${card.current.rect.height}px`, marginTop, marginBottom, overflow: 'hidden'}], {duration: ms, easing: ease});
+				// The card and the rows below it are still moving while it grows or
+				// closes, so the page is not settled until they stop. A motion cut
+				// short ends it too.
+				const grew = begin();
+				void grown.animate([{height: `${from}px`, marginTop: '0px', marginBottom: '0px', overflow: 'hidden'}, {height: `${card.current.rect.height}px`, marginTop, marginBottom, overflow: 'hidden'}], {duration: ms, easing: ease}).finished.then(grew, grew);
 			}
 		}
 		rowHeights.current = new Map([...(body.current?.querySelectorAll<HTMLElement>('[data-task]') ?? [])].map(el => [el.dataset.task!, el.offsetHeight]));
