@@ -106,10 +106,12 @@
   body {
     @apply bg-background text-foreground;
   }
-  /* An app stays at its own size, so a double tap does not zoom it. */
+  /* An app stays at its own size, so a double tap does not zoom it, and the
+     page only pans up and down, leaving a sideways swipe to open the
+     sidebar. Code blocks scroll sideways on their own. */
   html {
     @apply font-sans;
-    touch-action: manipulation;
+    touch-action: pan-y;
   }
 }
 

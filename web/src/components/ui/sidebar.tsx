@@ -743,12 +743,22 @@ function PhoneSidebar({
   const letGo = (keep: boolean) => {
     pulled.current = null
     for (const el of [popup.current, backdrop.current]) el?.style.removeProperty("transition")
-    popup.current?.style.removeProperty("transform")
-    backdrop.current?.style.removeProperty("opacity")
-    if (!keep) setOpen(false)
+    if (keep) {
+      popup.current?.style.removeProperty("transform")
+      backdrop.current?.style.removeProperty("opacity")
+      return
+    }
+    // It slides back from where the finger left it. Dropping the finger's
+    // place first would show it fully open for a moment.
+    popup.current?.style.setProperty("transform", "translateX(-100%)")
+    backdrop.current?.style.setProperty("opacity", "0")
+    setOpen(false)
   }
   // A right swipe that starts anywhere opens the sidebar once it is clearly
   // sideways. Safari keeps the strip at the very edge for its back swipe.
+  // The listeners never cancel a touch, so the browser scrolls up and down
+  // without waiting for them, and the page only pans up and down, so a
+  // sideways pull moves nothing but the sidebar.
   const isOpen = React.useRef(open)
   isOpen.current = open
   React.useEffect(() => {
@@ -756,9 +766,11 @@ function PhoneSidebar({
     let last = {x: 0, at: 0, speed: 0}
     const down = (e: TouchEvent) => {
       const t = e.touches[0]
-      // Once open, the drawer's own swipe closes it, and nothing opens it
-      // over a box such as Capture.
-      if (isOpen.current || document.querySelector('[role="dialog"]')) return void (start = null)
+      // Once open, the drawer's own swipe closes it, nothing opens it over a
+      // box such as Capture, and code blocks and text fields keep their own
+      // sideways movement.
+      const own = e.target instanceof Element && e.target.closest("pre, input, textarea")
+      if (isOpen.current || own || document.querySelector('[role="dialog"]')) return void (start = null)
       start = e.touches.length === 1 && t ? {x: t.clientX, y: t.clientY, at: Date.now()} : null
     }
     const move = (e: TouchEvent) => {
@@ -767,7 +779,6 @@ function PhoneSidebar({
       const dx = t.clientX - start.x
       const dy = t.clientY - start.y
       if (pulled.current !== null) {
-        e.preventDefault()
         const now = Date.now()
         last = {x: t.clientX, at: now, speed: (t.clientX - last.x) / Math.max(1, now - last.at)}
         pulled.current = Math.max(0, dx)
@@ -776,7 +787,6 @@ function PhoneSidebar({
       // A finger held still first is a long press for dragging a Task.
       if (Math.abs(dy) > 12 || dx < -12 || Date.now() - start.at > 280) return void (start = null)
       if (dx > 12 && dx > Math.abs(dy) * 2) {
-        e.preventDefault()
         last = {x: t.clientX, at: Date.now(), speed: 0}
         pulled.current = dx
         setOpen(true)
@@ -791,7 +801,7 @@ function PhoneSidebar({
       letGo(pulled.current > width / 3 || flicked)
     }
     document.addEventListener("touchstart", down, {passive: true})
-    document.addEventListener("touchmove", move, {passive: false})
+    document.addEventListener("touchmove", move, {passive: true})
     document.addEventListener("touchend", up)
     document.addEventListener("touchcancel", up)
     return () => {
