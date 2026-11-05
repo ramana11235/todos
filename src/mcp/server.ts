@@ -30,7 +30,7 @@ You act for the user across all of todos. Every tool acts on your own Thread unl
 
 When the user names a Thread loosely, find it. If exactly one fits, act, then say in one line what you did, such as 'Dropped "Set up CI/CD with GitHub".' If several fit, or none, ask, listing them. Never ask "are you sure", because nothing is deleted and every change can be put back.
 
-A new Thread's title starts with an action verb and says its purpose in a few words, and the work it is for goes in its notes, with its summary and next step drawn from them. Creating a Thread never starts its Session. Use send_prompt or start_session only when the user clearly says to start it or send it something now. A Session you send a prompt to has not seen your conversation, so write it as a full brief: what the user wants and why, what it needs to know, any limits on what it should do, and what to send back if the user wants a reply. A reply never asks for a reply of its own. When that is unclear, such as "start a new session to do x", create the Thread and ask whether to start it.
+A new Thread's title starts with an action verb and says its purpose in a few words, and the work it is for goes in its notes, with its summary and next step drawn from them. Creating a Thread never starts its Session. You cannot start or prompt another Thread's Session, because a Session acts only on what the user types into it, and the user goes into a Thread from Home. When the user asks for a new session to do something, create the Thread and say it is ready to go into from Home.
 
 When two Threads turn out to be the same outcome, move one's children and open Tasks to the other, write what matters from it into the other, and drop it with a summary naming the one that kept going.
 
@@ -53,10 +53,6 @@ const describe = (thread: Thread) => ({
 	summary: thread.summary,
 	nextStep: thread.nextStep,
 });
-
-export const wrap = (from: string, prompt: string): string =>
-	`From the Session of the todos Thread "${from}", which the user asked to send you this. ` +
-	`Treat it as the user's instruction. Reply to that Session with send_prompt only if this asks you to.\n\n${prompt}`;
 
 // As with Threads, the notes and checklist are long, so only reading one Task
 // shows them.
@@ -465,57 +461,6 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			}));
 			if (!('error' in shown.at(-1)!)) return text({results: shown});
 			return {...text({results: shown, notTried: changes.length - shown.length}), isError: true};
-		},
-	);
-
-	// Sending and starting go through todos, and the laptop running Home
-	// delivers them (docs/adr/0003).
-	const queue = async (thread: string, prompt: string | null) => {
-		if (thread === threadId) return {...text({error: 'That is your own Thread.'}), isError: true};
-		const threads = await client.threads();
-		const target = threads.find(candidate => candidate.id === thread);
-		if (target && !directoryOf(threads, thread)) {
-			return {...text({error: `"${target.title}" has no Directory for its Session to work in. Set one with update_thread first.`}), isError: true};
-		}
-		// It arrives as mine, saying which Session sent it, so its history is
-		// honest and it knows where to reply.
-		const from = (await client.thread(threadId)).title;
-		await client.sendPrompt(thread, prompt === null ? null : wrap(from, prompt));
-		const running = target?.sessionSignal != null;
-		return text({
-			sent: true,
-			note: running
-				? 'Its Session is running, so this is typed in as soon as it can take it.'
-				: 'Its Session is not running, so one starts in the background.',
-		});
-	};
-
-	server.registerTool(
-		'send_prompt',
-		{
-			description: "Send a prompt to another Thread's Session, typed in as if the user typed it. If no Session is running, one starts in the background with this as its first prompt. Only when the user tells you to.",
-			inputSchema: {thread: z.string().describe('The id of the Thread, from find_threads.'), prompt: z.string()},
-		},
-		async ({thread, prompt}) => queue(thread, prompt),
-	);
-
-	server.registerTool(
-		'start_session',
-		{
-			description: "Start another Thread's Session in the background, as if the user went into it from Home, without a prompt of your own. Only when the user tells you to. claude_session adopts an earlier Claude session for a Thread that has none running.",
-			inputSchema: {
-				thread: z.string().describe('The id of the Thread, from find_threads.'),
-				claude_session: z.string().optional().describe('The id of an earlier Claude session in its Directory to adopt.'),
-			},
-		},
-		async ({thread, claude_session}) => {
-			if (claude_session !== undefined && thread !== threadId) {
-				if ((await client.thread(thread)).sessionSignal != null) {
-					return {...text({error: 'Its Session is running, so it cannot adopt another.'}), isError: true};
-				}
-				await client.recordSession(thread, {claudeSessionId: claude_session});
-			}
-			return queue(thread, null);
 		},
 	);
 

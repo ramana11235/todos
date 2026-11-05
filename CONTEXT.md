@@ -186,15 +186,15 @@ _Avoid_: Theme
 - Ending a **Thread** changes nothing else: its child **Threads** and its open **Tasks** stay as they are, and I deal with them myself
 - **Home** shows the **Active** **Threads**. One key also shows the **Threads** I could bring in, the **Someday** ones and those with a day ahead, dimmed in the same tree and showing their day; ended **Threads** have a view of their own, like the **Logbook**, and never mix in. A hidden **Thread** shows dimmed when an **Active** **Thread** sits below it
 - A **Directory** is optional; a **Thread** without its own **Directory** uses its nearest ancestor's, and any **Thread** can set its own to override it
-- A **Directory** can be set before the folder exists, but a **Session** only starts once it does. Going in from **Home** says there is no folder there and stays on **Home**, and a prompt waits as it does for a **Thread** with no **Directory**
+- A **Directory** can be set before the folder exists, but a **Session** only starts once it does. Going in from **Home** says there is no folder there and stays on **Home**
 - A pane I split in a **Thread**'s window with prefix then % or " starts in that **Thread**'s **Directory**, whichever pane I split from
 
 ### Sessions
 
 - A **Thread** has at most one **Session**; a **Thread** with no **Session** is kept up to date by hand
-- A Claude session becomes a **Session** only when it is started from **Home**, or by another **Session** when I tell it to, either fresh or by adopting an existing Claude session; one started anywhere else has no **Thread** and is ignored
+- A Claude session becomes a **Session** only when it is started from **Home**; one started anywhere else has no **Thread** and is ignored
 - A **Session** can create **Threads** anywhere in the tree. Creating a **Thread** never starts a **Session** for it; the work it is for is written into its **Notes**, with its **Summary** and **Next step** drawn from them
-- A **Session** starts another **Thread**'s **Session** only when I clearly tell it to start it or send it a prompt now. It starts in the background, so I stay where I am, and getting there is still through **Home**. When it is unclear whether I meant to start it, the **Session** creates the **Thread** and asks me
+- A **Session** acts only on what I type into it. Nothing can start another **Thread**'s **Session** or send it a prompt, neither another **Session** nor the API; I go into a **Thread** from **Home** and type myself. When I ask a **Session** for a new session to do something, it creates the **Thread** for me to go into
 - A **Session** acts for me: it can do anything I can do, but on anything other than its own **Thread** it acts only when I tell it to. If it notices something elsewhere, it tells me rather than acting
 - The one thing a **Session** cannot do that I can is write my **Thoughts**. It learns about other **Threads** from their **Summary**, **Next step** and **Notes**, never by reading another **Session**'s conversation
 - A **Session** keeps its own **Thread** true by itself, without being told
@@ -204,7 +204,6 @@ _Avoid_: Theme
 - A change to the **Notes** by me or another **Session** is kept like any change I make by hand. When I write something in the **Summary** that the **Notes** do not say, the **Session** carries it into the **Notes**
 - A **Session** can reach every **Thread** and **Session** in todos, not only its own tree, but it reads them only when I ask something that needs them. It is never handed the **Whose move**, **When** or **Ended** of other **Threads** and never brings them up by itself
 - Every **Session** runs on the one laptop that runs **Home**. When todos is hosted, the cloud holds only what the **Sessions** report, never the **Sessions** themselves
-- A **Session** can send a prompt to the **Session** of any **Thread**. It is typed into the receiving **Session** as my instruction, because the sending **Session** acts for me, with a line saying which **Session** sent it, so its history stays honest and it knows where to reply. It replies only when the prompt asks it to, and a reply never asks for one back. The sending **Session** writes the prompt as a full brief, because the receiving one has not seen its conversation. A prompt is kept in todos until the receiving **Session** can take it: straight away when it is free or busy, and once I have answered when it is asking me something. A prompt to a **Thread** with no running **Session** starts one in the background, the same way going in from **Home** would, and the prompt is its first. So a prompt can be sent from anywhere, and the laptop delivers it
 - A **Session** can add **Tasks** to any **Thread** or to none; they land in **Anytime** when linked to a **Thread**, and in the **Inbox** otherwise, unless I tell the **Session** to put them somewhere else
 
 ### Projects and areas

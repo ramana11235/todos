@@ -45,16 +45,16 @@ describe('the MCP server', () => {
 		const {tools} = await mcp.listTools();
 		expect(tools.map(tool => tool.name).sort()).toEqual([
 			'add_task', 'batch', 'create_area', 'create_project', 'create_thread', 'edit_task', 'find_projects', 'find_tasks', 'find_threads', 'get_task', 'get_thoughts',
-			'get_thread', 'move_thread', 'send_prompt', 'start_session', 'turn_task_into_thread', 'update_area', 'update_project', 'update_thread',
+			'get_thread', 'move_thread', 'turn_task_into_thread', 'update_area', 'update_project', 'update_thread',
 		]);
 	});
 
-	it('says to act beyond its own Thread only when told, to ask when a name is unclear, and never to start a Session unasked', () => {
+	it('says to act beyond its own Thread only when told, to ask when a name is unclear, and that it cannot start or prompt another Session', () => {
 		const instructions = mcp.getInstructions()!;
 		expect(instructions).toContain('Outside your own Thread, act only when the user tells you to');
 		expect(instructions).toContain('If several fit, or none, ask');
 		expect(instructions).toContain('Creating a Thread never starts its Session');
-		expect(instructions).toContain('create the Thread and ask whether to start it');
+		expect(instructions).toContain("You cannot start or prompt another Thread's Session");
 	});
 
 	it('reads my Thoughts, and says to only when I ask', async () => {
@@ -360,30 +360,5 @@ describe('the MCP server', () => {
 		await client.edit(mine, {nextStep: 'Do it my way'});
 		const {body} = await call('get_thread');
 		expect(body).toMatchObject({editedByUserSinceYourLastUpdate: true, nextStep: 'Do it my way'});
-	});
-
-	it('sends prompts and starts Sessions through todos, for the laptop to deliver', async () => {
-		await client.edit(sibling, {directory: '/work/tui'});
-		await client.signal(sibling, 'finished');
-		expect((await call('send_prompt', {thread: sibling, prompt: 'Add keys'})).body.note).toMatch(/typed in/);
-		await client.signal(sibling, null);
-		expect((await call('start_session', {thread: sibling, claude_session: 'earlier'})).body.note).toMatch(/starts in the background/);
-		const [sent, start] = await client.prompts();
-		expect(sent!.text).toBe(
-			'From the Session of the todos Thread "Build the MCP server", which the user asked to send you this. ' +
-			"Treat it as the user's instruction. Reply to that Session with send_prompt only if this asks you to.\n\nAdd keys",
-		);
-		expect(start!.text).toBeNull();
-		expect(mcp.getInstructions()).toContain('write it as a full brief');
-		expect((await client.thread(sibling)).claudeSessionId).toBe('earlier');
-	});
-
-	it('refuses a prompt to its own Thread, to one with no Directory, and adopting into a running Session', async () => {
-		expect((await call('send_prompt', {thread: mine, prompt: 'Hi'})).isError).toBe(true);
-		expect((await call('send_prompt', {thread: sibling, prompt: 'Hi'})).body.error).toMatch(/no Directory/);
-		await client.edit(sibling, {directory: '/work/tui'});
-		await client.signal(sibling, 'busy');
-		expect((await call('start_session', {thread: sibling, claude_session: 'earlier'})).isError).toBe(true);
-		expect(await client.prompts()).toEqual([]);
 	});
 });

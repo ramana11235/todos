@@ -46,7 +46,7 @@ export function claudeMcpConfig(self: string[], env: Record<string, string>): ob
 export const firstPrompt = (title: string): string => `Pick up the todos Thread "${title}".`;
 
 export function claudeCommand({self, apiUrl}: {self: string[]; apiUrl: string}): SessionCommand {
-	return ({thread, sessionId, resume, prompt}) => {
+	return ({thread, sessionId, resume}) => {
 		const env = {TODOS_THREAD: thread.id, TODOS_API_URL: apiUrl};
 		const command = [
 			'claude',
@@ -55,8 +55,7 @@ export function claudeCommand({self, apiUrl}: {self: string[]; apiUrl: string}):
 			'--mcp-config', JSON.stringify(claudeMcpConfig(self, env)),
 			// --mcp-config takes several files, so without -- it would read the
 			// prompt as one more and Claude would exit at once.
-			// A prompt sent from another Session comes first, as if I typed it.
-			...(prompt ? ['--', prompt] : resume ? [] : ['--', firstPrompt(thread.title)]),
+			...(resume ? [] : ['--', firstPrompt(thread.title)]),
 		];
 		return {command, env};
 	};

@@ -3,7 +3,7 @@ import {tmpdir} from 'node:os';
 import {basename, dirname, join} from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import type {Thread} from '../src/core/thread.js';
-import {pasteable, SessionRunner, type SessionCommand} from '../src/session/runner.js';
+import {SessionRunner, type SessionCommand} from '../src/session/runner.js';
 import {tmuxConfig} from '../src/session/tmux-config.js';
 import {Tmux} from '../src/session/tmux.js';
 
@@ -46,19 +46,9 @@ afterEach(() => {
 
 describe('the Session runner', () => {
 	it('starts a Session in the background without going to it', () => {
-		const result = runner.start(thread(), dir, 'Rerun CI');
+		const result = runner.start(thread(), dir);
 		expect(currentWindowName()).toBe('home');
 		expect(runner.livePanes().has(result.sessionPane)).toBe(true);
-	});
-
-	it('types a prompt into a pane as one message and sends it', async () => {
-		const pane = tmux.run(['new-window', '-d', '-P', '-F', '#{pane_id}', 'cat']);
-		runner.type(pane, 'Rerun CI\nthen tell me');
-		await new Promise(resolve => setTimeout(resolve, 300));
-		const shown = tmux.run(['capture-pane', '-p', '-t', pane]);
-		expect(shown).toContain('Rerun CI');
-		expect(shown).toContain('then tell me');
-		expect(tmux.tryRun(['show-buffer', '-b', 'todos-prompt'])).toBeNull();
 	});
 
 	it('starts todos tmux with Home and no way to see other windows', () => {
@@ -250,11 +240,5 @@ describe('the Session runner', () => {
 			const again = runner.open(thread({sessionPane: first.sessionPane, claudeSessionId: first.claudeSessionId}), dir);
 			expect(windowOf(again.sessionPane)).not.toBe(windowOf(strip));
 		});
-	});
-});
-
-describe('typing a prompt', () => {
-	it('takes control characters out of a prompt before it is pasted, keeping new lines and tabs', () => {
-		expect(pasteable('Rerun CI\u001b[201~\u001b[Z\n\tthen tell me')).toBe('Rerun CI[201~[Z\n\tthen tell me');
 	});
 });

@@ -27,7 +27,6 @@ import {handleHook, type HookName} from './hooks/handle.js';
 import {createMcpServer} from './mcp/server.js';
 import {claudeCommand, selfCommand} from './session/claude-command.js';
 import {canResume} from './session/claude-sessions.js';
-import {deliverPrompts} from './session/deliver.js';
 import {SessionRunner} from './session/runner.js';
 import {homeWindow, tmuxConfig, tmuxSession} from './session/tmux-config.js';
 import {minimumTmux, Tmux, tmuxIsNewEnough} from './session/tmux.js';
@@ -154,27 +153,8 @@ function home(): void {
 	onNewBuild(() => runner.restartHome(homeStart(process.env.TODOS_LAUNCH_DIR ?? process.cwd())));
 	const foldsPath = join(todosHome(), 'folded.json');
 	const focusPath = join(todosHome(), 'focus.json');
-	// Home's process is the one on the laptop that delivers prompts. While no
-	// terminal is attached it checks for them less often, since every check
-	// is a request the hosted Instance counts. While I am at the laptop it
-	// checks often, whichever window I am in, because a prompt from one
-	// Session to another should arrive while I watch.
 	const client = new Client(apiUrl(), apiHeaders());
 	const shown = paneShown(tmux);
-	const attached = () => tmux.tryRun(['display-message', '-p', '-t', tmuxSession, '#{session_attached}']) !== '0';
-	let delivering = false;
-	let ticks = 0;
-	setInterval(() => {
-		if (delivering || (++ticks % 10 !== 0 && !attached())) return;
-		delivering = true;
-		deliverPrompts(client, {
-			livePanes: () => runner.livePanes(),
-			start: (thread, directory, prompt) => runner.start(thread, directory, prompt),
-			type: (pane, text) => runner.type(pane, text),
-		})
-			.catch(() => {})
-			.finally(() => (delivering = false));
-	}, 1500);
 	render(
 		<Home
 			client={client}

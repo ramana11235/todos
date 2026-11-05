@@ -7,7 +7,6 @@ import {randomUUID} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {homedir} from 'node:os';
 import type {Thread} from '../core/thread.js';
-import {controlCharacters} from '../core/threads.js';
 import {homeWindow, tasksPaneWidth, thoughtsHeight, tmuxSession} from './tmux-config.js';
 import type {Tmux} from './tmux.js';
 
@@ -15,7 +14,6 @@ export type SessionCommand = (start: {
 	thread: Thread;
 	sessionId: string;
 	resume: boolean;
-	prompt?: string;
 }) => {command: string[]; env: Record<string, string>};
 
 export type OpenResult = {sessionPane: string; claudeSessionId: string};
@@ -85,8 +83,8 @@ export class SessionRunner {
 	}
 
 	// Starts a Thread's Session without going to it, fresh or resuming its
-	// conversation, with `prompt` as its first if one was sent.
-	start(thread: Thread, directory: string, prompt?: string): OpenResult {
+	// conversation.
+	start(thread: Thread, directory: string): OpenResult {
 		// A Directory is kept as it was typed, so ~ can stand for my home
 		// folder. The message names it that way too, as Home's details do.
 		const path = directory.replace(/^~(?=$|\/)/, homedir());
@@ -96,7 +94,7 @@ export class SessionRunner {
 		// A conversation kept under another folder still holds its id, and
 		// Claude exits at once if a fresh one is given it, so it gets a new id.
 		const sessionId = resume ? thread.claudeSessionId! : randomUUID();
-		const {command, env} = this.sessionCommand({thread, sessionId, resume, prompt});
+		const {command, env} = this.sessionCommand({thread, sessionId, resume});
 		const window = this.windowOf(thread.id);
 		const created = window
 			? this.tmux.run(['split-window', '-d', '-t', window, '-c', path, '-P', '-F', '#{pane_id}', ...envArgs(env), ...command])
@@ -108,16 +106,6 @@ export class SessionRunner {
 		if (!window) this.tmux.run(['set-option', '-w', '-t', sessionPane, '@todos_thread', thread.id]);
 		this.tmux.run(['set-option', '-w', '-t', sessionPane, '@todos_directory', path]);
 		return {sessionPane, claudeSessionId: sessionId};
-	}
-
-	// Types a prompt into a Session's pane and sends it, as if I typed it.
-	// Pasting keeps a prompt of several lines as one message.
-	// shortcut: anything I left half typed in that pane is sent along with
-	// it; clear the line first if that ever bites.
-	type(pane: string, text: string): void {
-		this.tmux.run(['set-buffer', '-b', 'todos-prompt', '--', pasteable(text)]);
-		this.tmux.run(['paste-buffer', '-p', '-d', '-b', 'todos-prompt', '-t', pane]);
-		this.tmux.run(['send-keys', '-t', pane, 'Enter']);
 	}
 
 	// Opens the task panel on the right of the window, with the focus in it,
@@ -211,7 +199,3 @@ export class SessionRunner {
 
 const envArgs = (env: Record<string, string>): string[] =>
 	Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]);
-
-// The API refuses control characters in a prompt, and they are taken out
-// here too, in case an older API kept one.
-export const pasteable = (text: string): string => text.replace(new RegExp(controlCharacters, 'g'), '');

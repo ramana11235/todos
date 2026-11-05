@@ -21,13 +21,6 @@ describe('the claude command for a Session', () => {
 		expect(command.slice(0, 3)).toEqual(['claude', '--resume', 's1']);
 	});
 
-	it('puts a sent prompt first, whether the Session is new or resumed', () => {
-		for (const resume of [false, true]) {
-			const {command} = start({thread, sessionId: 's1', resume, prompt: 'Rerun CI'});
-			expect(command.slice(-2)).toEqual(['--', 'Rerun CI']);
-		}
-	});
-
 	it("stops the Session's own tools reading or changing the settings file, which can hold the service token", () => {
 		const {command} = start({thread, sessionId: 's1', resume: false});
 		const settings = JSON.parse(command[command.indexOf('--settings') + 1]!);
