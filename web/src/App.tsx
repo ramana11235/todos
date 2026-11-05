@@ -1060,7 +1060,9 @@ export function App() {
 							<SidebarGroup>
 								<SidebarMenu>
 									{lists.filter(v => v !== 'inbox').map(v => (
-										<ViewItem key={v} view={v} current={current} count={counts[v]} onPick={setView} />
+										// Only Today counts its Tasks, as Inbox does, since those
+										// are the lists that ask for something now.
+										<ViewItem key={v} view={v} current={current} count={v === 'today' ? counts.today : 0} onPick={setView} />
 									))}
 								</SidebarMenu>
 							</SidebarGroup>

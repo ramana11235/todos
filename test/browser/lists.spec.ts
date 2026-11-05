@@ -66,3 +66,17 @@ test.describe('the Trash in the sidebar', () => {
 		expect((await todos.client.task(task.id)).ended).toBe('dropped');
 	});
 });
+
+test.describe('the counts in the sidebar', () => {
+	test.skip(({isMobile}) => isMobile, 'The phone keeps the sidebar closed');
+
+	test('only Inbox and Today show how many Tasks they hold', async ({page, todos}) => {
+		for (const kind of ['inbox', 'today', 'anytime', 'someday'] as const) await todos.client.addTask({title: `A Task for ${kind}`, when: {kind}});
+		await todos.client.addTask({title: 'Post the parcel', when: {kind: 'on_day', day: '2099-01-01'}});
+		await open(page, todos, 'today');
+		const badge = (list: string) => page.locator(`[data-list="${list}"] [data-sidebar="menu-badge"]`);
+		expect(await badge('inbox').textContent()).toBe('1');
+		expect(await badge('today').textContent()).toBe('1');
+		for (const list of ['anytime', 'upcoming', 'someday']) expect(await badge(list).count()).toBe(0);
+	});
+});
