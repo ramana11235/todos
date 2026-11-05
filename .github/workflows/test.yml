@@ -34,16 +34,16 @@ jobs:
     runs-on: ubuntu-latest
     # One deploy at a time, so an older commit never lands after a newer one.
     concurrency: deploy
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    # The Cloudflare token goes only to the two steps that use it. Install
+    # scripts are off, so no package can read it or change wrangler before
+    # wrangler runs with it.
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Write wrangler.jsonc from the example and the repository variables
         env:
           ROUTE_PATTERN: ${{ vars.ROUTE_PATTERN }}
@@ -72,9 +72,14 @@ jobs:
       # Outside a terminal wrangler answers its own confirmation with yes, and it
       # applies nothing when the hosted database already has every migration.
       - name: Apply new migrations to the hosted database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler d1 migrations apply todos --remote
       - run: npx vite build --config web/vite.config.ts
-      - uses: cloudflare/wrangler-action@v4
+      # Pinned to the commit of v4.1.3, because a version label can be moved
+      # to other code and this step holds the token.
+      - uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
