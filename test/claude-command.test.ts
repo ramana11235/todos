@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {Thread} from '../src/core/thread.js';
+import {settingsPath} from '../src/config.js';
 import {claudeCommand, firstPrompt} from '../src/session/claude-command.js';
 
 const thread = {id: 't1', title: 'Add tasks to the terminal'} as Thread;
@@ -25,5 +26,11 @@ describe('the claude command for a Session', () => {
 			const {command} = start({thread, sessionId: 's1', resume, prompt: 'Rerun CI'});
 			expect(command.slice(-2)).toEqual(['--', 'Rerun CI']);
 		}
+	});
+
+	it("stops the Session's own tools reading or changing the settings file, which can hold the service token", () => {
+		const {command} = start({thread, sessionId: 's1', resume: false});
+		const settings = JSON.parse(command[command.indexOf('--settings') + 1]!);
+		expect(settings.permissions.deny).toEqual([`Read(/${settingsPath()})`, `Edit(/${settingsPath()})`]);
 	});
 });

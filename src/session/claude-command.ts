@@ -2,6 +2,7 @@
 // environment, todos' hooks to report what the Session is doing, and todos'
 // MCP server to keep the Thread true.
 
+import {settingsPath} from '../config.js';
 import type {SessionCommand} from './runner.js';
 
 // The Claude Code hook events todos listens to, and the name each one goes
@@ -25,8 +26,12 @@ export function claudeSettings(self: string[]): object {
 	}
 	return {
 		hooks,
-		// Without this, every update to the Thread would stop and ask me.
-		permissions: {allow: ['mcp__todos']},
+		// Without the allow, every update to the Thread would stop and ask me.
+		// The settings file can hold the hosted Instance's service token, and
+		// todos' MCP server reads it itself, so Claude has no reason to. A
+		// Session misled by something it read then cannot read it with its own
+		// tools, though a command it is allowed to run still could.
+		permissions: {allow: ['mcp__todos'], deny: [`Read(/${settingsPath()})`, `Edit(/${settingsPath()})`]},
 	};
 }
 
