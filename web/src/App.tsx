@@ -117,7 +117,7 @@ const showsEnded = (view: View): view is keyof typeof endedViews => view in ende
 // Upcoming is in date order, and the Logbook and the Trash in the order Tasks ended.
 const reorderable = (view: View) => view !== 'upcoming' && !showsEnded(view) && view !== 'threads';
 
-type Row = {kind: 'header'; label: string} | {kind: 'belonging'; belonging: Belonging} | {kind: 'thread'; thread: Thread; nested?: boolean} | {kind: 'task'; task: Task};
+type Row = {kind: 'header'; label: string} | {kind: 'belonging'; belonging: Belonging; underDay?: boolean} | {kind: 'thread'; thread: Thread; nested?: boolean} | {kind: 'task'; task: Task};
 
 // Puts a heading over each run of Tasks that share a label, such as a day.
 function withHeadings(tasks: Task[], label: (task: Task) => string): Row[] {
@@ -159,7 +159,7 @@ const count = (n: number) => (n === 1 ? 'task' : `${n} tasks`);
 function ViewItem({view, current, count, onPick}: {view: View; current: View | 'page'; count: number; onPick: (view: View) => void}) {
 	const {setOpenMobile} = useSidebar();
 	// Tasks dragged onto a list move there, onto the Logbook are ticked off,
-	// and onto the Trash are dropped. Upcoming needs a Date and the Threads page is not a list, so
+	// and onto the Trash are dropped. A project dragged onto Someday is parked there. Upcoming needs a Date and the Threads page is not a list, so
 	// nothing can be dropped on them.
 	const {setNodeRef, isOver} = useDroppable({id: `list:${view}`, disabled: view === 'upcoming' || view === 'threads' || view === current});
 	const [Icon, colour] = icons[view];
@@ -304,22 +304,23 @@ export function App() {
 			return withHeadings(shown, t => (t.endedAt ? dayName(dayOf(new Date(t.endedAt))) : ''));
 		}
 		const inList = [...tasks.filter(t => !kept.has(t.id) && listOf(t, now) === view), ...kept.values()];
-		if (view === 'upcoming') return upcomingRows(inList, threads, now, stay).map(row => (row.kind === 'day' ? {kind: 'header', label: dayName(row.day)} : row));
+		if (view === 'upcoming') return upcomingRows(inList, threads, now, stay, projects, order).map((row): Row => (row.kind === 'day' ? {kind: 'header', label: dayName(row.day)} : row.kind === 'belonging' ? {...row, underDay: true} : row));
 		// Going into Someday is looking, so the Threads parked there show too.
 		const parked = view === 'someday' ? threads.filter(t => t.ended === 'not_ended' && t.when.kind === 'someday') : [];
+		const parkedProjects: Belongs[] = view === 'someday' ? projects.filter(p => p.ended === 'not_ended' && p.when.kind === 'someday').map(p => ({kind: 'project', id: p.id})) : [];
 		const items: ({kind: 'task'; task: Task} | {kind: 'thread'; thread: Thread})[] = [
 			...inList.sort((a, b) => endedLast(stay)(a, b) || a.position - b.position).map(task => ({kind: 'task' as const, task})),
 			...parked.map(thread => ({kind: 'thread' as const, thread})),
 		];
 		const belongsOf = (item: (typeof items)[number]) => (item.kind === 'task' ? taskBelongs(item.task, threads) : threadBelongs(item.thread, threads));
-		return groupedByBelonging(items, belongsOf, order).flatMap(({heading, items: group}): Row[] => [
+		return groupedByBelonging(items, belongsOf, order, parkedProjects).flatMap(({heading, items: group}): Row[] => [
 			...(heading ? [{kind: 'belonging' as const, belonging: heading}] : []),
 			// Under a project or area a Thread's heading is a level below, so it
 			// loses its rule.
 			...groupedByThread(group.flatMap(i => (i.kind === 'task' ? [i.task] : [])), threads, now, group.flatMap(i => (i.kind === 'thread' ? [i.thread] : [])))
 				.map(row => (row.kind === 'thread' && heading ? {...row, nested: true} : row)),
 		]);
-	}, [tasks, ended, kept, stay, view, now, threads, shown, order]);
+	}, [tasks, ended, kept, stay, view, now, threads, shown, order, projects]);
 	// Upcoming itself, not a page opened while it was the list.
 	const inUpcoming = view === 'upcoming' && shown.kind === 'none';
 	const shownTasks = rows.flatMap(r => (r.kind === 'task' ? [r.task] : []));
@@ -781,21 +782,25 @@ export function App() {
 		window.addEventListener('keydown', escape.watch, true);
 		return () => window.removeEventListener('keydown', escape.watch, true);
 	}, [escape]);
-	// A project lands among the projects and area rows, and an area among
-	// the areas. For a Task, over the sidebar the list, project or area under
+	// A project lands on Someday when the pointer is over it, as its When
+	// button would park it, and otherwise among the projects and area rows.
+	// An area lands among the areas. For a Task, over the sidebar the list, project or area under
 	// the pointer wins; within the list, the nearest row.
 	const collisions: CollisionDetection = args => {
 		const dragged = sortableOf(String(args.active.id)).kind;
 		const among = (keep: (kind: ReturnType<typeof sortableOf>['kind']) => boolean) =>
 			args.droppableContainers.filter(c => keep(sortableOf(String(c.id)).kind));
-		if (dragged === 'project') return closestCenter({...args, droppableContainers: among(kind => kind === 'project' || kind === 'head')});
+		if (dragged === 'project') {
+			const someday = pointerWithin({...args, droppableContainers: args.droppableContainers.filter(c => c.id === 'list:someday')});
+			return someday.length ? someday : closestCenter({...args, droppableContainers: among(kind => kind === 'project' || kind === 'head')});
+		}
 		if (dragged === 'area') return closestCenter({...args, droppableContainers: among(kind => kind === 'area')});
 		const tasks = among(kind => kind === 'other');
 		const places = [...tasks.filter(c => String(c.id).startsWith('list:')), ...among(kind => kind === 'project' || kind === 'head')];
 		const inSidebar = pointerWithin({...args, droppableContainers: places});
 		return inSidebar.length ? inSidebar : closestCenter({...args, droppableContainers: tasks});
 	};
-	const sidebar = sidebarRows(projects, areas);
+	const sidebar = sidebarRows(projects, areas, now);
 	// A plain click opens a project or area. On a project, cmd-click adds or
 	// takes it away from those picked, and shift-click picks every project
 	// from the one last clicked to this one.
@@ -819,7 +824,11 @@ export function App() {
 	};
 	const dropInSidebar = (activeId: string, overId: string) => {
 		const [dragged, over] = [sortableOf(activeId), sortableOf(overId)];
-		if (sidebarDrag.kind === 'projects' && dragged.kind === 'project' && (over.kind === 'project' || over.kind === 'head')) {
+		if (sidebarDrag.kind === 'projects' && overId === 'list:someday') {
+			const parked = new Set(sidebarDrag.ids);
+			setProjects(ps => ps.map(p => (parked.has(p.id) ? {...p, when: {kind: 'someday'}} : p)));
+			void Promise.all(sidebarDrag.ids.map(id => client.editProject(id, {when: {kind: 'someday'}}))).then(refresh, refresh);
+		} else if (sidebarDrag.kind === 'projects' && dragged.kind === 'project' && (over.kind === 'project' || over.kind === 'head')) {
 			const target = {kind: over.kind === 'head' ? 'area' : 'project', id: over.id} as const;
 			const changed = projectsDropped(sidebar, projects, sidebarDrag.ids, dragged.id, target);
 			const byId = new Map(changed.map(c => [c.id, c]));
@@ -1053,7 +1062,7 @@ export function App() {
 							<SortableContext items={sidebar.map(row => sortableId(row.kind === 'area' ? 'head' : 'project', row.id))} strategy={verticalListSortingStrategy}>
 								<SidebarGroup>
 									<SidebarMenu>
-										{projects.filter(p => p.area.kind === 'none' && p.ended === 'not_ended').sort(byPosition).map(p => (
+										{projects.filter(p => p.area.kind === 'none' && isActive(p, now)).sort(byPosition).map(p => (
 											<PageItem key={p.id} page={{kind: 'project', id: p.id}} title={p.title} deadline={p.deadline} active={isShown('project', p.id)} picked={picked.includes(p.id)} onClick={clickPage} />
 										))}
 									</SidebarMenu>
@@ -1065,7 +1074,7 @@ export function App() {
 										{handle => (
 											<SortableContext items={sidebar.map(row => sortableId(row.kind === 'area' ? 'head' : 'project', row.id))} strategy={verticalListSortingStrategy}>
 												<PageItem page={{kind: 'area', id: a.id}} title={a.title} active={isShown('area', a.id)} onClick={clickPage} handle={handle} />
-												{projects.filter(p => p.area.kind === 'in' && p.area.id === a.id && p.ended === 'not_ended').sort(byPosition).map(p => (
+												{projects.filter(p => p.area.kind === 'in' && p.area.id === a.id && isActive(p, now)).sort(byPosition).map(p => (
 													<PageItem key={p.id} page={{kind: 'project', id: p.id}} title={p.title} deadline={p.deadline} active={isShown('project', p.id)} picked={picked.includes(p.id)} onClick={clickPage} />
 												))}
 											</SortableContext>
@@ -1161,7 +1170,7 @@ export function App() {
 														{row.label}
 													</h2>
 												) : row.kind === 'belonging' ? (
-													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} row={`b-${belongsKey(row.belonging.belongs)}`} style={away()} belonging={row.belonging} onOpen={openPage} />
+													<BelongingHeading key={`b-${belongsKey(row.belonging.belongs)}`} row={`b-${belongsKey(row.belonging.belongs)}`} style={away()} belonging={row.belonging} underDay={row.underDay} onOpen={openPage} />
 												) : row.kind === 'thread' ? (
 													<h2
 														key={`t-${row.thread.id}`}

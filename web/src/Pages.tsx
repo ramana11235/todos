@@ -16,7 +16,7 @@ import type {Deadline as DeadlineDay} from '../../src/core/thread';
 import {deadlineName} from '../../src/core/words';
 import {daysLeft, today} from './days';
 import {Deadline, DeadlinePicker} from './Deadline';
-import {Field} from './Threads';
+import {Field, WhenButton} from './Threads';
 
 export type Page = {kind: 'project' | 'area'; id: string};
 
@@ -88,13 +88,14 @@ export function sortableOf(sortable: string): {kind: SortableKind; id: string} |
 }
 
 // A heading over the Tasks of one project or area in a list, naming the
-// area before the project. It opens that page.
-export function BelongingHeading({belonging, row, style, onOpen}: {belonging: Belonging; row: string; style: CSSProperties; onOpen: (page: Page) => void}) {
+// area before the project. It opens that page. Under a day in Upcoming, as a
+// project coming back that day, it is set like a Thread's heading there.
+export function BelongingHeading({belonging, row, style, underDay = false, onOpen}: {belonging: Belonging; row: string; style: CSSProperties; underDay?: boolean; onOpen: (page: Page) => void}) {
 	const {belongs, path, ended} = belonging;
 	if (belongs.kind === 'none') return null;
 	const Icon = iconOf(belongs.kind);
 	return (
-		<h2 data-row={row} style={style} className="mt-10 mb-1 border-b pb-1.5 text-base font-semibold first:mt-0">
+		<h2 data-row={row} style={style} className={cn('mb-1 font-semibold first:mt-0', underDay ? 'mt-6 text-sm [h2+&]:mt-3' : 'mt-10 border-b pb-1.5 text-base')}>
 			<button className="flex items-center gap-2 hover:text-(--icon-bright)" onClick={() => onOpen(belongs)}>
 				<Icon className="size-4" style={{color: colourOf(belongs.kind)}} />
 				{path.length > 1 && <span className="font-normal text-muted-foreground">{path[0]} ›</span>}
@@ -194,6 +195,7 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 								})}
 							</PopoverContent>
 						</Popover>
+						{!ended && <WhenButton when={project.when} onWhen={when => onEditProject(project.id, {when})} />}
 						<Popover open={open === 'deadline'} onOpenChange={isOpen => setOpen(isOpen ? 'deadline' : null)}>
 							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
 								{project.deadline.kind === 'by_day' ? (

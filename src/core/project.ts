@@ -2,7 +2,7 @@
 // stand beside Threads rather than being kinds of Thread (docs/adr/0006).
 
 import type {Task} from './task.js';
-import {treeRows, type Deadline, type Ended, type Thread, type TreeRow} from './thread.js';
+import {treeRows, type Deadline, type Ended, type Thread, type TreeRow, type When} from './thread.js';
 
 // A part of my life that is never finished, such as Health. It is in use
 // until it is Dropped, and is never Done.
@@ -25,6 +25,9 @@ export type Project = {
 	title: string;
 	notes: string;
 	area: InArea;
+	// Where it sits, as a Thread's When does. It moves only the project, never
+	// the Threads and Tasks in it.
+	when: When;
 	deadline: Deadline;
 	ended: Ended;
 	// Where it sits among the projects in the sidebar, the lowest first.
@@ -86,12 +89,13 @@ export function belongingOrder(projects: Project[], areas: Area[]): Belonging[] 
 // Splits things into those that belong nowhere, then one group for each
 // project or area in `order` that has any. Something whose project or area is
 // not known yet, such as before they have loaded, goes with those that belong
-// nowhere rather than vanishing.
-export function groupedByBelonging<T>(items: T[], belongsOf: (item: T) => Belongs, order: Belonging[]): {heading: Belonging | null; items: T[]}[] {
+// nowhere rather than vanishing. A project in `also` gets its group even with
+// nothing in it, as Someday projects do in Someday.
+export function groupedByBelonging<T>(items: T[], belongsOf: (item: T) => Belongs, order: Belonging[], also: Belongs[] = []): {heading: Belonging | null; items: T[]}[] {
 	const known = order.filter(one => one.belongs.kind !== 'none');
 	const headingOf = (item: T) => known.find(one => sameBelongs(one.belongs, belongsOf(item))) ?? null;
 	const groups = [{heading: null, items: items.filter(item => headingOf(item) === null)}, ...known.map(heading => ({heading, items: items.filter(item => headingOf(item) === heading)}))];
-	return groups.filter(group => group.items.length > 0);
+	return groups.filter(group => group.items.length > 0 || (group.heading && also.some(one => sameBelongs(one, group.heading!.belongs))));
 }
 
 // A Task linked to a Thread belongs where its Thread does.

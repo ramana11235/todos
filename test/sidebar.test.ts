@@ -4,17 +4,23 @@ import {areaDropped, projectsDropped, sidebarRows, dragEscape} from '../web/src/
 
 const area = (id: string, position: number): Area => ({id, title: id, notes: '', ended: 'not_ended', position, createdAt: ''});
 const project = (id: string, position: number, inArea?: string): Project => ({
-	id, title: id, notes: '', area: inArea ? {kind: 'in', id: inArea} : {kind: 'none'}, deadline: {kind: 'none'}, ended: 'not_ended', position, createdAt: '',
+	id, title: id, notes: '', area: inArea ? {kind: 'in', id: inArea} : {kind: 'none'}, when: {kind: 'active'}, deadline: {kind: 'none'}, ended: 'not_ended', position, createdAt: '',
 });
 
 // Loose, then Health with Run and Sleep, then Home, which has no projects yet.
 const areas = [area('Health', 0), area('Home', 1)];
 const projects = [project('Loose', 0), project('Run', 1, 'Health'), project('Sleep', 2, 'Health'), {...project('Old', 3), ended: 'done' as const}];
-const rows = sidebarRows(projects, areas);
+const rows = sidebarRows(projects, areas, '2026-11-05');
 
 describe('dragging in the sidebar', () => {
 	it('lists projects in no area, then each area with its open projects', () => {
 		expect(rows.map(row => row.id)).toEqual(['Loose', 'Health', 'Run', 'Sleep', 'Home']);
+	});
+
+	it('leaves out a project in Someday or with a day still ahead, and lists it again on its day', () => {
+		const parked = [...projects, {...project('Garden', 4), when: {kind: 'someday' as const}}, {...project('Move', 5), when: {kind: 'on_day' as const, day: '2026-11-06'}}];
+		expect(sidebarRows(parked, areas, '2026-11-05').map(row => row.id)).toEqual(['Loose', 'Health', 'Run', 'Sleep', 'Home']);
+		expect(sidebarRows(parked, areas, '2026-11-06').map(row => row.id)).toEqual(['Loose', 'Move', 'Health', 'Run', 'Sleep', 'Home']);
 	});
 
 	it('puts a project dragged down onto an area at the top of that area', () => {

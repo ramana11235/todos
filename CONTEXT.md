@@ -60,7 +60,7 @@ _Avoid_: Folder, workspace, repo
 ### Projects and areas
 
 **Project**:
-An outcome made of **Threads** and **Tasks**, such as Build todos, which sits in one **Area** or in none. It has a title, **Notes**, a **Deadline** and an **Ended** (**Done** or **Dropped**), but no **Whose move**, **Session** or **When**, which belong to its **Threads** and **Tasks**.
+An outcome made of **Threads** and **Tasks**, such as Build todos, which sits in one **Area** or in none. It has a title, **Notes**, a **When** (**Active**, **Someday** or a day it comes back, as a **Thread**'s), a **Deadline** and an **Ended** (**Done** or **Dropped**), but no **Whose move** or **Session**, which belong to its **Threads**.
 _Avoid_: Workstream, epic
 
 **Area**:
@@ -213,6 +213,7 @@ _Avoid_: Theme
 - Nothing nests: an **Area** never sits in an **Area**, and a **Project** never sits in a **Project**. The smaller parts of a **Project** are its **Threads**
 - A **Project** shows wherever its **Threads** and **Tasks** show; parking it means parking its **Threads**
 - Ending a **Project** or dropping an **Area** changes nothing inside it, as ending a **Thread** changes nothing else. The web app asks me first when something inside is still open, and that open work keeps showing under its **Project**, marked **Done**
+- A **Project**'s **When** moves only the **Project**, as a **Thread**'s does: in **Someday** it leaves the sidebar's **Projects** and shows in **Someday**, and its **Tasks** and **Threads** stay wherever their own **When** puts them
 - A **Project**'s page shows its **Notes**, **Deadline**, **Threads** and **Tasks**; an **Area**'s shows its **Projects**, **Threads** and **Tasks**. An ended **Project** leaves the sidebar
 - A **Session** can do everything with **Projects** and **Areas** that I can, acting outside its own **Thread** only when I tell it to
 
@@ -234,7 +235,7 @@ _Avoid_: Theme
 - Linking a **Task**, placing a new **Thread** and moving a **Thread** all use the same picker of open **Threads**, shown as the tree until I type
 - A **Task** added from a **Thread**'s details is linked to it and goes to **Anytime** unless I pick otherwise, because it is already clarified
 - In a list, clicking a **Thread**'s title over its group opens it on the **Threads page**
-- In the web app, **Someday** shows each **Someday** **Thread** as its title over a group, even with no **Tasks** under it, and **Upcoming** does the same for a **Thread** under the day it comes back. The count beside a list counts only **Tasks**. The terminal task panel shows only **Tasks** and the titles of their **Threads**, because inside a **Thread** nothing shows the state of other **Threads**
+- In the web app, **Someday** shows each **Someday** **Thread** and **Project** as its title over a group, even with no **Tasks** under it, and **Upcoming** does the same for a **Thread** or **Project** under the day it comes back. The sidebar lists only **Active** **Projects**. The count beside a list counts only **Tasks**. The terminal task panel shows only **Tasks** and the titles of their **Threads**, because inside a **Thread** nothing shows the state of other **Threads**
 - A **Summary**, a **Thread**'s **Notes** and a **Task**'s **Notes** are written in Markdown and shown formatted
 
 ### Thoughts

@@ -103,11 +103,13 @@ const newProjectFields = {
 	title: {input: 'title'},
 	notes: {input: 'notes'},
 	area: {input: 'area'},
+	when: {leftOut: 'A new project is Active; a Session sets its When with update_project'},
 	deadline: {input: 'deadline'},
 } satisfies Record<keyof NewProject, Offered>;
 
 const projectEditFields = {
 	...newProjectFields,
+	when: {input: 'when'},
 	ended: {input: 'ended'},
 	position: {leftOut: 'The number the web app sets when I drag a project in the sidebar; a Session places one with position, sent as index'},
 	index: {input: 'position'},
@@ -117,7 +119,7 @@ const projectEditFields = {
 // A Thread's Deadline takes a different shape from a Task's.
 const threadSamples = {when: {kind: 'someday'}, deadline: {kind: 'none'}};
 const taskSamples = {when: {kind: 'today'}, deadline: {kind: 'none'}};
-const projectSamples = {deadline: {kind: 'none'}, ended: 'dropped'};
+const projectSamples = {when: {kind: 'someday'}, deadline: {kind: 'none'}, ended: 'dropped'};
 
 const changes: Array<{change: string; tool: string; args: Record<string, unknown>; fields: Record<string, Offered>; values?: Record<string, unknown>}> = [
 	{change: 'adding a Task', tool: 'add_task', args: {title: 'A'}, fields: taskFields, values: taskSamples},

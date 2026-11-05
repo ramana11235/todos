@@ -98,6 +98,12 @@ const createThreadInput = {
 	belongs_to: belongsTo.describe('The project or area it belongs to, only for a Thread at the top level.'),
 };
 
+// A Thread's or a project's When.
+const comesBack = z
+	.discriminatedUnion('kind', [z.object({kind: z.literal('active')}), z.object({kind: z.literal('someday')}), z.object({kind: z.literal('on_day'), day})])
+	.optional()
+	.describe('Active to work on it now, someday for not now, or on_day to bring it back into Active on that day. Only when the user tells you to.');
+
 const updateThreadInput = {
 	thread: threadArg,
 	title: z.string().optional(),
@@ -106,10 +112,7 @@ const updateThreadInput = {
 	summary: z.string().optional().describe('Drawn from the notes: a few short bullet points in simple words.'),
 	next_step: z.string().optional().describe('One short sentence naming the single next thing. For a waiting Thread, who or what it waits on.'),
 	whose_move: z.enum(['on_me', 'waiting']).optional().describe("on_me if the next step is the user's or yours; waiting if it belongs to someone or something else."),
-	when: z
-		.discriminatedUnion('kind', [z.object({kind: z.literal('active')}), z.object({kind: z.literal('someday')}), z.object({kind: z.literal('on_day'), day})])
-		.optional()
-		.describe('Active to work on it now, someday for not now, or on_day to bring it back into Active on that day. Only when the user tells you to.'),
+	when: comesBack,
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('done or dropped only when the user tells you to; not_ended reopens it.'),
 	deadline,
 	belongs_to: belongsTo.describe('The project or area it belongs to, only for a Thread at the top level; the Threads under it belong where it does.'),
@@ -184,6 +187,7 @@ const updateProjectInput = {
 	title: z.string().optional(),
 	notes: z.string().optional().describe('The whole notes, replacing the old ones.'),
 	area: z.string().nullable().optional().describe('The id of the area it is in, or null for none.'),
+	when: comesBack.describe('Active, someday for not now, or on_day to bring it back into Active on that day. It moves only the project, never the Threads and Tasks in it. Only when the user tells you to.'),
 	deadline,
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('done or dropped only when the user tells you to; not_ended reopens it. Nothing inside it changes.'),
 	position: z.number().int().min(0).optional().describe('Where among the projects of its area, or of those in no area, as find_projects lists them, 0 for first.'),
@@ -375,7 +379,7 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			const byPosition = (a: {position: number}, b: {position: number}) => a.position - b.position;
 			return text({
 				areas: areas.filter(matches).sort(byPosition).map(({id, title, notes, ended}) => ({id, title, notes, ended})),
-				projects: projects.filter(matches).sort(byPosition).map(({id, title, notes, area, deadline, ended}) => ({id, title, notes, area, deadline, ended})),
+				projects: projects.filter(matches).sort(byPosition).map(({id, title, notes, area, when, deadline, ended}) => ({id, title, notes, area, when, deadline, ended})),
 			});
 		},
 	);

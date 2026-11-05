@@ -4,18 +4,23 @@ import {Threads} from '../src/core/threads.js';
 import {groupedByThread, type Task} from '../src/core/task.js';
 import {endedLast, leftElsewhere, upcomingRows} from '../web/src/groups.js';
 import {makeStorage} from './support.js';
+import {Projects} from '../src/core/projects.js';
+import {belongingOrder} from '../src/core/project.js';
+import type {Storage} from '../src/storage/storage.js';
 
 let tasks: Tasks;
 let threads: Threads;
 
+let storage: Storage;
+
 beforeEach(async () => {
-	const storage = await makeStorage();
+	storage = await makeStorage();
 	tasks = new Tasks(storage);
 	threads = new Threads(storage);
 });
 
 const shown = (rows: ReturnType<typeof upcomingRows>) =>
-	rows.map(row => (row.kind === 'day' ? `## ${row.day} ##` : row.kind === 'thread' ? `-- ${row.thread.title} --` : row.task.title));
+	rows.map(row => (row.kind === 'day' ? `## ${row.day} ##` : row.kind === 'thread' ? `-- ${row.thread.title} --` : row.kind === 'belonging' ? `[${row.belonging.path.join(' › ')}]` : row.task.title));
 
 describe("grouping a list's Tasks under their Threads in the web app", () => {
 	it('puts Tasks with no Thread first, then a group per Thread in tree order', async () => {
@@ -76,6 +81,20 @@ describe("Upcoming's rows in the web app", () => {
 			'## 2099-01-03 ##', 'Water the plants', '-- Plan a party --', 'Collect the cake', '-- Do the tax return --', 'Find the P60',
 			'## 2099-01-06 ##', 'Take the bins out',
 			'## 2099-01-10 ##', '-- Renew passport --',
+		]);
+	});
+
+	it('shows a project coming back on a day ahead under that day, after its Threads, leaving its Tasks under their own days', async () => {
+		const projects = new Projects(storage);
+		const garden = await projects.createProject({title: 'Redo the garden', when: {kind: 'on_day', day: '2099-01-10'}});
+		const done = await projects.createProject({title: 'Paint the fence', when: {kind: 'on_day', day: '2099-01-10'}});
+		await projects.editProject(done.id, {ended: 'done'});
+		await threads.create({title: 'Renew passport', when: {kind: 'on_day', day: '2099-01-10'}});
+		await tasks.add({title: 'Buy compost', when: {kind: 'on_day', day: '2099-01-03'}, belongs: {kind: 'project', id: garden.id}});
+		const all = await projects.listProjects();
+		expect(shown(upcomingRows(await tasks.list(), await threads.list(), '2026-11-01', new Set(), all, belongingOrder(all, [])))).toEqual([
+			'## 2099-01-03 ##', 'Buy compost',
+			'## 2099-01-10 ##', '-- Renew passport --', '[Redo the garden]',
 		]);
 	});
 

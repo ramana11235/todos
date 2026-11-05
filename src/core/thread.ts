@@ -60,7 +60,8 @@ export type Prompt = {
 };
 
 // `today` is a day such as 2026-10-18, in my own time zone.
-export function isActive(thread: Thread, today: string): boolean {
+// A project is Active in the same way.
+export function isActive(thread: {ended: Ended; when: When}, today: string): boolean {
 	if (thread.ended !== 'not_ended') return false;
 	return thread.when.kind === 'active' || (thread.when.kind === 'on_day' && thread.when.day <= today);
 }

@@ -1,7 +1,8 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Projects} from '../src/core/projects.js';
-import {belongingOrder, belongsKey, homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
+import {belongingOrder, belongsKey, groupedByBelonging, homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
 import {Tasks} from '../src/core/tasks.js';
+import {isActive} from '../src/core/thread.js';
 import {Threads} from '../src/core/threads.js';
 import type {Storage} from '../src/storage/storage.js';
 import {makeStorage, readNow, startApi} from './support.js';
@@ -118,6 +119,34 @@ describe('projects and areas', () => {
 		expect(await projects.getProject(run.id)).toMatchObject({ended: 'done', area: {kind: 'none'}, deadline: {kind: 'none'}});
 		await projects.editProject(run.id, {ended: 'not_ended'});
 		expect((await projects.getArea(health.id)).ended).toBe('dropped');
+	});
+
+	it('have a When of their own, Active to start, which moves only the project and never what is in it', async () => {
+		const garden = await projects.createProject({title: 'Redo the garden'});
+		expect(garden.when).toEqual({kind: 'active'});
+		const compost = await tasks.add({title: 'Buy compost', when: {kind: 'today'}, belongs: {kind: 'project', id: garden.id}});
+		const beds = await threads.create({title: 'Plan the beds', belongs: {kind: 'project', id: garden.id}});
+
+		await projects.editProject(garden.id, {when: {kind: 'someday'}});
+		expect((await projects.getProject(garden.id)).when).toEqual({kind: 'someday'});
+		expect((await tasks.get(compost.id)).when).toEqual({kind: 'today'});
+		expect((await threads.get(beds.id)).when).toEqual({kind: 'active'});
+
+		await projects.editProject(garden.id, {when: {kind: 'on_day', day: '2026-12-01'}});
+		const back = await projects.getProject(garden.id);
+		expect(back.when).toEqual({kind: 'on_day', day: '2026-12-01'});
+		expect([isActive(back, '2026-11-30'), isActive(back, '2026-12-01')]).toEqual([false, true]);
+		await expect(projects.editProject(garden.id, {when: {kind: 'today'} as never})).rejects.toMatchObject({code: 'invalid'});
+	});
+
+	it('give a project its group in a list even with nothing in it, when asked to, as Someday does for a parked project', async () => {
+		const garden = await projects.createProject({title: 'Redo the garden'});
+		await projects.createProject({title: 'Paint the fence'});
+		const order = belongingOrder(await projects.listProjects(), []);
+		const headings = (also: Parameters<typeof groupedByBelonging>[3]) =>
+			groupedByBelonging<string>([], () => ({kind: 'none'}), order, also).map(group => group.heading?.path.join(''));
+		expect(headings([])).toEqual([]);
+		expect(headings([{kind: 'project', id: garden.id}])).toEqual(['Redo the garden']);
 	});
 
 	it('refuse an area that does not exist and a missing title', async () => {

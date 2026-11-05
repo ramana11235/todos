@@ -308,14 +308,17 @@ function facts(edit: MyEdit): Partial<Thread> {
 	const found: Partial<Thread> = {};
 	if (edit.whoseMove !== undefined) found.whoseMove = oneOf<WhoseMove>(edit.whoseMove, ['on_me', 'waiting'], 'Whose move');
 	if (edit.ended !== undefined) found.ended = requireEnded(edit.ended);
-	if (edit.when !== undefined) {
-		const when = edit.when as {kind?: unknown; day?: unknown} | null;
-		if (when?.kind === 'active' || when?.kind === 'someday') found.when = {kind: when.kind};
-		else if (when?.kind === 'on_day' && isDay(when.day)) found.when = {kind: 'on_day', day: when.day};
-		else throw new ThreadError('invalid', 'When is {kind: "active"}, {kind: "someday"} or {kind: "on_day", day: "2026-10-23"}');
-	}
+	if (edit.when !== undefined) found.when = requireWhen(edit.when);
 	if (edit.deadline !== undefined) found.deadline = requireDeadline(edit.deadline);
 	return found;
+}
+
+// A Thread and a project take When in the same shape.
+export function requireWhen(value: unknown): When {
+	const when = value as {kind?: unknown; day?: unknown} | null;
+	if (when?.kind === 'active' || when?.kind === 'someday') return {kind: when.kind};
+	if (when?.kind === 'on_day' && isDay(when.day)) return {kind: 'on_day', day: when.day};
+	throw new ThreadError('invalid', 'When is {kind: "active"}, {kind: "someday"} or {kind: "on_day", day: "2026-10-23"}');
 }
 
 // A Thread and a Task take Ended and a Deadline in the same shapes.

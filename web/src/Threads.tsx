@@ -219,7 +219,7 @@ function Details({
 	onEnd: (how: 'done' | 'dropped') => void;
 }) {
 	const [notesOpen, setNotesOpen] = useState(false);
-	const [open, setOpen] = useState<'move' | 'when' | 'deadline' | 'moveTo' | 'belongs' | null>(null);
+	const [open, setOpen] = useState<'move' | 'deadline' | 'moveTo' | 'belongs' | null>(null);
 	const opener = (which: NonNullable<typeof open>) => (isOpen: boolean) => setOpen(isOpen ? which : null);
 	const pick = (run: () => void) => {
 		setOpen(null);
@@ -260,30 +260,7 @@ function Details({
 								))}
 							</PopoverContent>
 						</Popover>
-						{/* When: Active, Someday, or a day it comes back. */}
-						<Popover open={open === 'when'} onOpenChange={opener('when')}>
-							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
-								{whenName(thread.when, today()) === 'Active' ? <NetworkIcon data-icon="inline-start" /> : thread.when.kind === 'someday' ? <ArchiveIcon data-icon="inline-start" /> : <CalendarIcon data-icon="inline-start" />}
-								{whenName(thread.when, today())}
-							</PopoverTrigger>
-							<PopoverContent className="w-auto p-1" align="start">
-								<Button variant="ghost" className="w-full justify-start" onClick={() => pick(() => onWhen({kind: 'active'}))}>
-									<NetworkIcon data-icon="inline-start" />
-									Active
-								</Button>
-								<Button variant="ghost" className="w-full justify-start" onClick={() => pick(() => onWhen({kind: 'someday'}))}>
-									<ArchiveIcon data-icon="inline-start" />
-									Someday
-								</Button>
-								<p className="px-2 pt-2 text-xs font-medium text-muted-foreground">Bring it back on</p>
-								<Calendar
-									mode="single"
-									weekStartsOn={1}
-									selected={thread.when.kind === 'on_day' ? new Date(`${thread.when.day}T12:00`) : undefined}
-									onSelect={day => day && pick(() => onWhen({kind: 'on_day', day: dayOf(day)}))}
-								/>
-							</PopoverContent>
-						</Popover>
+						<WhenButton when={thread.when} onWhen={onWhen} />
 						<Popover open={open === 'deadline'} onOpenChange={opener('deadline')}>
 							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
 								{thread.deadline.kind === 'by_day' ? <Deadline day={thread.deadline.day} /> : 'Deadline'}
@@ -891,5 +868,39 @@ function ThreadScreen({
 			)}
 			{selected ? details(list) : list}
 		</div>
+	);
+}
+
+// Where a Thread or a project sits: Active, Someday, or a day it comes back.
+export function WhenButton({when, onWhen}: {when: When; onWhen: (when: When) => void}) {
+	const [open, setOpen] = useState(false);
+	const pick = (next: When) => {
+		setOpen(false);
+		onWhen(next);
+	};
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
+				{whenName(when, today()) === 'Active' ? <NetworkIcon data-icon="inline-start" /> : when.kind === 'someday' ? <ArchiveIcon data-icon="inline-start" /> : <CalendarIcon data-icon="inline-start" />}
+				{whenName(when, today())}
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-1" align="start">
+				<Button variant="ghost" className="w-full justify-start" onClick={() => pick({kind: 'active'})}>
+					<NetworkIcon data-icon="inline-start" />
+					Active
+				</Button>
+				<Button variant="ghost" className="w-full justify-start" onClick={() => pick({kind: 'someday'})}>
+					<ArchiveIcon data-icon="inline-start" />
+					Someday
+				</Button>
+				<p className="px-2 pt-2 text-xs font-medium text-muted-foreground">Bring it back on</p>
+				<Calendar
+					mode="single"
+					weekStartsOn={1}
+					selected={when.kind === 'on_day' ? new Date(`${when.day}T12:00`) : undefined}
+					onSelect={day => day && pick({kind: 'on_day', day: dayOf(day)})}
+				/>
+			</PopoverContent>
+		</Popover>
 	);
 }

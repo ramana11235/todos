@@ -5,18 +5,18 @@
 import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import type {Area, Belongs, InArea, Project} from './project.js';
-import type {Deadline, Ended} from './thread.js';
-import {changedFields, requireDeadline, requireEnded, ThreadError} from './threads.js';
+import type {Deadline, Ended, When} from './thread.js';
+import {changedFields, requireDeadline, requireEnded, requireWhen, ThreadError} from './threads.js';
 
 // position is where it sits in the sidebar, as Projects and Areas hold it.
 // index is its place among the areas, 0 for first, which renumbers them.
 export type AreaEdit = {title?: string; notes?: string; ended?: 'not_ended' | 'dropped'; position?: number; index?: number};
 
-export type NewProject = {title: string; notes?: string; area?: InArea; deadline?: Deadline};
+export type NewProject = {title: string; notes?: string; area?: InArea; when?: When; deadline?: Deadline};
 
 // index is its place among the projects of its area, or of those in no area,
 // 0 for first, which renumbers them.
-export type ProjectEdit = {title?: string; notes?: string; area?: InArea; deadline?: Deadline; ended?: Ended; position?: number; index?: number};
+export type ProjectEdit = {title?: string; notes?: string; area?: InArea; when?: When; deadline?: Deadline; ended?: Ended; position?: number; index?: number};
 
 export class Projects {
 	constructor(
@@ -67,13 +67,14 @@ export class Projects {
 		return next;
 	}
 
-	async createProject({title, notes = '', area = {kind: 'none'}, deadline = {kind: 'none'}}: NewProject): Promise<Project> {
+	async createProject({title, notes = '', area = {kind: 'none'}, when = {kind: 'active'}, deadline = {kind: 'none'}}: NewProject): Promise<Project> {
 		const all = await this.storage.listProjects();
 		const project: Project = {
 			id: randomUUID(),
 			title: requireTitle(title),
 			notes: String(notes),
 			area: await this.requireInArea(area),
+			when: requireWhen(when),
 			deadline: requireDeadline(deadline),
 			ended: 'not_ended',
 			position: nextPosition(all),
@@ -89,6 +90,7 @@ export class Projects {
 		if (edit.title !== undefined) next.title = requireTitle(edit.title);
 		if (edit.notes !== undefined) next.notes = String(edit.notes);
 		if (edit.area !== undefined) next.area = await this.requireInArea(edit.area);
+		if (edit.when !== undefined) next.when = requireWhen(edit.when);
 		if (edit.deadline !== undefined) next.deadline = requireDeadline(edit.deadline);
 		if (edit.ended !== undefined) next.ended = requireEnded(edit.ended);
 		if (edit.position !== undefined) next.position = requirePosition(edit.position);

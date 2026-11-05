@@ -175,12 +175,13 @@ export abstract class SqlStorage implements Storage {
 	}
 
 	async listProjects(): Promise<Project[]> {
-		const rows = await this.db.all<{id: string; title: string; notes: string; area_id: string | null; deadline: string | null; ended: string; position: number; created_at: string}>('SELECT * FROM projects');
+		const rows = await this.db.all<{id: string; title: string; notes: string; area_id: string | null; when_kind: string; when_day: string | null; deadline: string | null; ended: string; position: number; created_at: string}>('SELECT * FROM projects');
 		return rows.map(row => ({
 			id: row.id,
 			title: row.title,
 			notes: row.notes,
 			area: (row.area_id ? {kind: 'in', id: row.area_id} : {kind: 'none'}) as InArea,
+			when: row.when_kind === 'on_day' ? {kind: 'on_day', day: row.when_day!} : ({kind: row.when_kind} as When),
 			deadline: deadlineOf(row.deadline),
 			ended: row.ended as Ended,
 			position: row.position,
@@ -190,13 +191,15 @@ export abstract class SqlStorage implements Storage {
 
 	async saveProject(project: Project): Promise<void> {
 		await this.db.run(
-			`INSERT INTO projects (id, title, notes, area_id, deadline, ended, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO projects (id, title, notes, area_id, when_kind, when_day, deadline, ended, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(id) DO UPDATE SET title = excluded.title, notes = excluded.notes, area_id = excluded.area_id,
-					deadline = excluded.deadline, ended = excluded.ended, position = excluded.position`,
+					when_kind = excluded.when_kind, when_day = excluded.when_day, deadline = excluded.deadline, ended = excluded.ended, position = excluded.position`,
 			project.id,
 			project.title,
 			project.notes,
 			project.area.kind === 'in' ? project.area.id : null,
+			project.when.kind,
+			project.when.kind === 'on_day' ? project.when.day : null,
 			dayOfDeadline(project.deadline),
 			project.ended,
 			project.position,
@@ -258,7 +261,7 @@ const taskColumns: Record<Exclude<keyof Task, 'when' | 'deadline' | 'belongs' | 
 
 const areaColumns: Record<keyof Area, string> = {id: 'id', title: 'title', notes: 'notes', ended: 'ended', position: 'position', createdAt: 'created_at'};
 
-const projectColumns: Record<Exclude<keyof Project, 'area' | 'deadline'>, string> = {
+const projectColumns: Record<Exclude<keyof Project, 'area' | 'when' | 'deadline'>, string> = {
 	id: 'id',
 	title: 'title',
 	notes: 'notes',

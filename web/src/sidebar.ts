@@ -3,15 +3,17 @@
 // projects, so a project's area is whichever area is above it once dropped.
 
 import type {Area, InArea, Project} from '../../src/core/project';
+import {isActive} from '../../src/core/thread';
 
 // One row of the sidebar's projects and areas, in the order they show.
 export type SidebarRow = {kind: 'project'; id: string} | {kind: 'area'; id: string};
 
 const byPosition = (a: {position: number}, b: {position: number}) => a.position - b.position;
 
-// The open projects and areas as the sidebar shows them.
-export function sidebarRows(projects: Project[], areas: Area[]): SidebarRow[] {
-	const open = projects.filter(p => p.ended === 'not_ended').sort(byPosition);
+// The Active projects and open areas as the sidebar shows them. A project in
+// Someday, or with a day still ahead, shows in Someday or Upcoming instead.
+export function sidebarRows(projects: Project[], areas: Area[], today: string): SidebarRow[] {
+	const open = projects.filter(p => isActive(p, today)).sort(byPosition);
 	const row = (p: Project): SidebarRow => ({kind: 'project', id: p.id});
 	return [
 		...open.filter(p => p.area.kind === 'none').map(row),

@@ -257,7 +257,7 @@ describe('the MCP server', () => {
 		const run = (await call('create_project', {title: 'Run a 10k', area: health})).body.id;
 		expect((await call('find_projects', {query: '10k'})).body).toEqual({
 			areas: [],
-			projects: [{id: run, title: 'Run a 10k', notes: '', area: {kind: 'in', id: health}, deadline: {kind: 'none'}, ended: 'not_ended'}],
+			projects: [{id: run, title: 'Run a 10k', notes: '', area: {kind: 'in', id: health}, when: {kind: 'active'}, deadline: {kind: 'none'}, ended: 'not_ended'}],
 		});
 		const launch = (await call('find_threads', {query: 'Launch'})).body[0].id;
 		await call('update_thread', {thread: launch, belongs_to: {kind: 'project', id: run}});
