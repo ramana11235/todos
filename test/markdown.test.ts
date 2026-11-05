@@ -14,4 +14,10 @@ describe('Markdown in the web app', () => {
 		expect(html).toContain('&lt;img');
 		expect(html).toContain('click');
 	});
+
+	it('shows an image as a link to it and never loads it', () => {
+		const html = markdownHtml('![A chart](https://example.com/chart.png)');
+		expect(html).not.toContain('<img');
+		expect(html).toContain('<a href="https://example.com/chart.png">A chart</a>');
+	});
 });
