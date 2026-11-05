@@ -19,6 +19,9 @@ local colours = {
 local todos = vim.json.decode(os.getenv('TODOS_SELF'))
 
 local o = vim.opt
+-- Thoughts come from the API, where others can write them, so settings
+-- written inside the page are never read.
+o.modeline = false
 o.termguicolors = true
 o.number = false
 o.relativenumber = false
