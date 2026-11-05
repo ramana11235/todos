@@ -15,7 +15,7 @@ import type {Thread} from '../../src/core/thread';
 import {Formatted} from './Formatted';
 import {ThreadPicker} from './ThreadPicker';
 import {Deadline, DeadlinePicker} from './Deadline';
-import {bareInput as bare, titleClass} from './TaskRow';
+import {bareInput as bare, somedayBox, titleClass} from './TaskRow';
 import {today} from './days';
 import {ease, ms} from './motion';
 import {placeIcons, whenLabel, WhenPicker} from './When';
@@ -78,7 +78,7 @@ export function TaskDetail({
 			}}
 		>
 			<div className="flex items-start gap-3">
-				<Checkbox className="mt-1" checked={task.ended === 'done'} onCheckedChange={onTick} aria-label="Done" />
+				<Checkbox className={cn('mt-1', somedayBox(task))} checked={task.ended === 'done'} onCheckedChange={onTick} aria-label="Done" />
 				{/* The whole title, wrapped onto as many lines as it needs. It is
 				    still one line of text, so Enter finishes and a pasted line
 				    break becomes a space. */}

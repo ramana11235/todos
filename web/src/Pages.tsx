@@ -27,23 +27,27 @@ export type Page = {kind: 'project' | 'area'; id: string};
 
 const colourOf = (kind: Page['kind']) => (kind === 'area' ? 'var(--icon-mid)' : 'var(--icon-bright)');
 
-// How far along a project is: the share of its Tasks that are Done, and
-// whether the project itself has ended. The app gives it for every project.
-export type Progress = {share: number; ended: Ended};
-export const ProgressOf = createContext<(id: string) => Progress>(() => ({share: 0, ended: 'not_ended'}));
+// How far along a project is: the share of its Tasks that are Done,
+// whether the project itself has ended, and whether it is in Someday. The
+// app gives it for every project.
+export type Progress = {share: number; ended: Ended; inSomeday: boolean};
+export const ProgressOf = createContext<(id: string) => Progress>(() => ({share: 0, ended: 'not_ended', inSomeday: false}));
 
 // A project's circle, filled like a pie with the share of its Tasks that
 // are Done, and full with a tick once the project is Done. The same circle
 // shows wherever a project does, and the wedge grows smoothly as it changes.
+// An open project in Someday has a dashed outline in Someday's grey, as a
+// Task's box does in Someday.
 export function ProjectCircle({id, className, style}: {id: string; className?: string; style?: CSSProperties}) {
-	const {share, ended} = useContext(ProgressOf)(id);
+	const {share, ended, inSomeday} = useContext(ProgressOf)(id);
+	const someday = inSomeday && ended === 'not_ended';
 	// The wedge is a thick stroke round a small circle, so a dash as long as
 	// the share draws the pie, starting at the top.
 	const r = 4;
 	const round = 2 * Math.PI * r;
 	return (
-		<svg viewBox="0 0 24 24" data-share={share} className={cn('size-4 shrink-0', className)} style={{color: colourOf('project'), ...style}} aria-hidden>
-			<circle cx="12" cy="12" r="10" fill={ended === 'done' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" />
+		<svg viewBox="0 0 24 24" data-share={share} className={cn('size-4 shrink-0', className)} style={{color: someday ? 'var(--icon-faint)' : colourOf('project'), ...style}} aria-hidden>
+			<circle cx="12" cy="12" r="10" fill={ended === 'done' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeDasharray={someday ? '4 3' : undefined} strokeLinecap="round" />
 			{ended === 'done' ? (
 				<path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="var(--background)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 			) : (

@@ -12,6 +12,8 @@ import {dayName} from './days';
 // A Task's title reads the same whether it is shown or being edited. The
 // input's own md:text-sm would otherwise make it smaller on wide screens.
 export const titleClass = 'font-sans text-[0.9375rem] leading-6 md:text-[0.9375rem]';
+// An open Task in Someday has a dashed box, so it reads as not in play.
+export const somedayBox = (task: Task) => (task.when.kind === 'someday' && task.ended === 'not_ended' ? 'border-dashed border-foreground/60' : undefined);
 export const bareInput = 'h-auto min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none focus-visible:ring-0 dark:bg-transparent';
 
 // Small marks for what an open Task would show: Notes, Checklist progress,
@@ -115,6 +117,7 @@ export function TaskRow({
 				</button>
 			) : (
 				<Checkbox
+					className={somedayBox(task)}
 					checked={ended}
 					onCheckedChange={onTick}
 					onClick={e => e.stopPropagation()}

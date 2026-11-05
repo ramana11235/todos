@@ -103,3 +103,25 @@ test.describe("a project's page", () => {
 		expect((await todos.client.projects())[0]!.ended).toBe('dropped');
 	});
 });
+
+test.describe("Someday's look", () => {
+	const borderStyle = (box: Locator) => box.evaluate(el => getComputedStyle(el).borderTopStyle);
+
+	test("an open Task in Someday has a dashed box, and one in play a solid box", async ({page, todos}) => {
+		await todos.client.addTask({title: 'Learn the cello', when: {kind: 'someday'}});
+		await todos.client.addTask({title: 'Buy compost', when: {kind: 'anytime'}});
+		await open(page, todos, 'someday');
+		expect(await borderStyle(page.locator('[data-task]', {hasText: 'Learn the cello'}).getByRole('checkbox'))).toBe('dashed');
+		await open(page, todos, 'anytime');
+		expect(await borderStyle(page.locator('[data-task]', {hasText: 'Buy compost'}).getByRole('checkbox'))).toBe('solid');
+	});
+
+	test("a project in Someday has a dashed circle on its page, and one in use a solid circle", async ({page, todos}) => {
+		const garden = await todos.client.createProject({title: 'Redo the garden', when: {kind: 'someday'}});
+		const move = await todos.client.createProject({title: 'Move flat'});
+		await open(page, todos, `project/${garden.id}`);
+		expect(await page.locator('main [data-share] circle').first().getAttribute('stroke-dasharray')).toBe('4 3');
+		await open(page, todos, `project/${move.id}`);
+		expect(await page.locator('main [data-share] circle').first().getAttribute('stroke-dasharray')).toBeNull();
+	});
+});

@@ -1030,11 +1030,12 @@ export function App() {
 			const belongs = taskBelongs(t, threads);
 			if (t.ended === 'not_ended' && belongs.kind === 'project') open.set(belongs.id, (open.get(belongs.id) ?? 0) + 1);
 		}
-		const ended = new Map(projects.map(p => [p.id, p.ended]));
+		const byId = new Map(projects.map(p => [p.id, p]));
 		return (id: string): Progress => {
 			const done = doneTasks[id] ?? 0;
 			const all = done + (open.get(id) ?? 0);
-			return {share: all ? done / all : 0, ended: ended.get(id) ?? 'not_ended'};
+			const project = byId.get(id);
+			return {share: all ? done / all : 0, ended: project?.ended ?? 'not_ended', inSomeday: project?.when.kind === 'someday'};
 		};
 	}, [tasks, threads, projects, doneTasks]);
 
