@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it} from 'vitest';
 import {Projects} from '../src/core/projects.js';
-import {belongingOrder, belongsKey, groupedByBelonging, homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
+import {belongingOrder, belongsKey, doneTasksByProject, groupedByBelonging, homeRows, taskBelongs, threadBelongs} from '../src/core/project.js';
 import {Tasks} from '../src/core/tasks.js';
 import {isActive} from '../src/core/thread.js';
 import {Threads} from '../src/core/threads.js';
@@ -220,6 +220,34 @@ describe('what a Task belongs to', () => {
 		expect((await tasks.turnIntoThread(loose.id, null, threads)).belongs).toEqual({kind: 'area', id: health.id});
 		const under = await tasks.add({title: 'Try yoga', belongs: {kind: 'area', id: health.id}});
 		expect((await tasks.turnIntoThread(under.id, gym.id, threads)).belongs).toEqual({kind: 'none'});
+	});
+});
+
+describe('how far along a project is', () => {
+	it('counts the Done Tasks in each project, its own and those on Threads in it, leaving out Dropped ones', async () => {
+		const garden = await projects.createProject({title: 'Redo the garden'});
+		const talk = await projects.createProject({title: 'Give a talk'});
+		const beds = await threads.create({title: 'Plan the beds', belongs: {kind: 'project', id: garden.id}});
+		const done = async (task: Parameters<Tasks['add']>[0]) => tasks.edit((await tasks.add(task)).id, {ended: 'done'});
+		await done({title: 'Buy compost', belongs: {kind: 'project', id: garden.id}});
+		await done({title: 'Measure the beds', threadId: beds.id});
+		await tasks.edit((await tasks.add({title: 'Buy a gnome', belongs: {kind: 'project', id: garden.id}})).id, {ended: 'dropped'});
+		await tasks.add({title: 'Dig', belongs: {kind: 'project', id: garden.id}});
+		await done({title: 'Make tea'});
+		expect(doneTasksByProject(await tasks.logbook(), await threads.list())).toEqual({[garden.id]: 2});
+		expect(talk.id in doneTasksByProject(await tasks.logbook(), await threads.list())).toBe(false);
+	});
+
+	it('is sent with every poll that finds a change', async () => {
+		const api = await startApi();
+		try {
+			const garden = await api.client.createProject({title: 'Redo the garden'});
+			const task = await api.client.addTask({title: 'Buy compost', belongs: {kind: 'project', id: garden.id}});
+			await api.client.editTask(task.id, {ended: 'done'});
+			expect(await api.client.changes({kind: 'nothing'})).toMatchObject({kind: 'changed', doneTasksByProject: {[garden.id]: 1}});
+		} finally {
+			await api.stop();
+		}
 	});
 });
 

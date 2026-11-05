@@ -59,7 +59,7 @@ import {endedLast, leftElsewhere, upcomingRows} from './groups';
 import {ease, fly, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
 import {StateDot} from './StateDot';
 import {ThreadsPage} from './Threads';
-import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, sortableId, sortableOf, type Page} from './Pages';
+import {AreaGroup, belongingLabel, BelongingHeading, ConfirmEnd, NewPage, PageItem, PageTop, ProgressOf, sortableId, sortableOf, type Page, type Progress} from './Pages';
 import {areaDropped, dragEscape, projectsDropped, sidebarRows} from './sidebar';
 import {addDays, dayName, today} from './days';
 import {TaskFinder} from './TaskFinder';
@@ -187,6 +187,7 @@ export function App() {
 	const [ended, setEnded] = useState<Task[]>([]);
 	const [threads, setThreads] = useState<Thread[]>([]);
 	const [projects, setProjects] = useState<Project[]>([]);
+	const [doneTasks, setDoneTasks] = useState<Record<string, number>>({});
 	const [areas, setAreas] = useState<Area[]>([]);
 	const [accentColour, setAccentColour] = useState<AccentColour>('blue');
 	const [shown, setShown] = useState<Belongs>(() => addressOf(window.location.hash).shown);
@@ -248,6 +249,7 @@ export function App() {
 			setTasks(changes.tasks);
 			setThreads(changes.threads);
 			setProjects(changes.projects);
+			setDoneTasks(changes.doneTasksByProject);
 			setAreas(changes.areas);
 			setAccentColour(changes.settings.accentColour);
 			if (showsEnded(view)) setEnded(await client.logbook());
@@ -1019,7 +1021,25 @@ export function App() {
 	// The bar takes the place of the + button, which a phone has no room for beside it.
 	const bar = !showsEnded(view) && (chosen.length > 1 || (picking && chosen.length > 0));
 
+	// How far along each project is: its Done Tasks, from the API, out of
+	// those and the open ones on screen. A Task just ticked counts once the
+	// API has it.
+	const progressOf = useMemo(() => {
+		const open = new Map<string, number>();
+		for (const t of tasks) {
+			const belongs = taskBelongs(t, threads);
+			if (t.ended === 'not_ended' && belongs.kind === 'project') open.set(belongs.id, (open.get(belongs.id) ?? 0) + 1);
+		}
+		const ended = new Map(projects.map(p => [p.id, p.ended]));
+		return (id: string): Progress => {
+			const done = doneTasks[id] ?? 0;
+			const all = done + (open.get(id) ?? 0);
+			return {share: all ? done / all : 0, ended: ended.get(id) ?? 'not_ended'};
+		};
+	}, [tasks, threads, projects, doneTasks]);
+
 	return (
+		<ProgressOf.Provider value={progressOf}>
 		<TooltipProvider>
 			<DndContext sensors={sensors} collisionDetection={collisions} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => {
 				setDragging([]);
@@ -1269,5 +1289,6 @@ export function App() {
 			{/* Raised so a message never covers the bar at the bottom. */}
 			<Toaster position="bottom-center" offset={88} mobileOffset={{bottom: 'calc(88px + env(safe-area-inset-bottom))'}} />
 		</TooltipProvider>
+		</ProgressOf.Provider>
 	);
 }

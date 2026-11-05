@@ -3,7 +3,7 @@
 // the web's own Request and Response, so the same routes run in Node on a
 // laptop and in a Cloudflare Worker.
 
-import type {Area, Project} from '../core/project.js';
+import {doneTasksByProject, type Area, type Project} from '../core/project.js';
 import type {Projects} from '../core/projects.js';
 import type {InstanceSettings, Settings} from '../core/settings.js';
 import type {Task} from '../core/task.js';
@@ -42,9 +42,12 @@ const batchable = new Set([
 ]);
 
 // The answer to a poll: nothing changed since the number the client last
-// saw, or the open Threads and Tasks, with every project and area and the
-// Settings, as they are now with the number to send next time.
-export type Changes = {kind: 'same'} | {kind: 'changed'; number: number; threads: Thread[]; tasks: Task[]; projects: Project[]; areas: Area[]; settings: Settings};
+// saw, or the open Threads and Tasks, with every project and area, how many
+// Done Tasks each project holds, and the Settings, as they are now with the
+// number to send next time.
+export type Changes =
+	| {kind: 'same'}
+	| {kind: 'changed'; number: number; threads: Thread[]; tasks: Task[]; projects: Project[]; areas: Area[]; doneTasksByProject: Record<string, number>; settings: Settings};
 
 export type ApiHandler = (request: Request) => Promise<Response>;
 
@@ -96,8 +99,11 @@ export function createHandler(
 		['GET', '/api/changes/:since', async ({since}): Promise<Changes> => {
 			const number = await threads.changeNumber();
 			if (since === String(number)) return {kind: 'same'};
-			const [threadList, taskList, projectList, areaList, settingsNow] = await Promise.all([threads.list(), tasks.list(), projects.listProjects(), projects.listAreas(), settings.get()]);
-			return {kind: 'changed', number, threads: threadList, tasks: taskList, projects: projectList, areas: areaList, settings: settingsNow};
+			const [threadList, taskList, ended, projectList, areaList, settingsNow] = await Promise.all([
+				threads.list(), tasks.list(), tasks.logbook(), projects.listProjects(), projects.listAreas(), settings.get(),
+			]);
+			const doneTasks = doneTasksByProject(ended, threadList);
+			return {kind: 'changed', number, threads: threadList, tasks: taskList, projects: projectList, areas: areaList, doneTasksByProject: doneTasks, settings: settingsNow};
 		}],
 		['GET', '/api/tasks', async () => tasks.list()],
 		['GET', '/api/tasks/:id', async ({id}) => tasks.get(id!)],

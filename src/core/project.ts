@@ -98,6 +98,18 @@ export function groupedByBelonging<T>(items: T[], belongsOf: (item: T) => Belong
 	return groups.filter(group => group.items.length > 0 || (group.heading && also.some(one => sameBelongs(one, group.heading!.belongs))));
 }
 
+// How many Done Tasks each project holds, its own and those on Threads in
+// it, by the project's id, so its circle can show how far along it is. A
+// project with none is left out.
+export function doneTasksByProject(tasks: Task[], threads: Thread[]): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const task of tasks) {
+		const belongs = taskBelongs(task, threads);
+		if (task.ended === 'done' && belongs.kind === 'project') counts[belongs.id] = (counts[belongs.id] ?? 0) + 1;
+	}
+	return counts;
+}
+
 // A Task linked to a Thread belongs where its Thread does.
 export function taskBelongs(task: Task, threads: Thread[]): Belongs {
 	const thread = task.threadId ? threads.find(candidate => candidate.id === task.threadId) : undefined;

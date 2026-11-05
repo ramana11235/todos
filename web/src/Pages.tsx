@@ -1,9 +1,11 @@
 // Projects and areas in the web app: their entries in the sidebar, their
 // heading over the Tasks in a list, and the top of the page each opens.
-import {useState, type CSSProperties, type MouseEvent, type ReactNode} from 'react';
+import {createContext, useContext, useState, type CSSProperties, type MouseEvent, type ReactNode} from 'react';
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {BoxIcon, CheckIcon, CircleIcon, FlagIcon, RotateCcwIcon} from 'lucide-react';
+import {BoxIcon, CheckIcon, FlagIcon, MoreHorizontalIcon, RotateCcwIcon, XIcon} from 'lucide-react';
+import {Calendar} from '@/components/ui/calendar';
+import {DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu';
 import {cn} from '@/lib/utils';
 import {Button} from '@/components/ui/button';
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog';
@@ -12,16 +14,59 @@ import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {SidebarGroup, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, useSidebar} from '@/components/ui/sidebar';
 import {sameBelongs, type Area, type Belonging, type Belongs, type InArea, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
-import type {Deadline as DeadlineDay} from '../../src/core/thread';
+import {dayOf} from '../../src/core/task';
+import type {Deadline as DeadlineDay, Ended} from '../../src/core/thread';
 import {deadlineName} from '../../src/core/words';
-import {daysLeft, today} from './days';
+import {dayName, daysLeft, today} from './days';
 import {Deadline, DeadlinePicker} from './Deadline';
-import {Field, WhenButton} from './Threads';
+import {ease} from './motion';
+import {Field} from './Threads';
+import {placeIcons} from './When';
 
 export type Page = {kind: 'project' | 'area'; id: string};
 
-const iconOf = (kind: Page['kind']) => (kind === 'area' ? BoxIcon : CircleIcon);
 const colourOf = (kind: Page['kind']) => (kind === 'area' ? 'var(--icon-mid)' : 'var(--icon-bright)');
+
+// How far along a project is: the share of its Tasks that are Done, and
+// whether the project itself has ended. The app gives it for every project.
+export type Progress = {share: number; ended: Ended};
+export const ProgressOf = createContext<(id: string) => Progress>(() => ({share: 0, ended: 'not_ended'}));
+
+// A project's circle, filled like a pie with the share of its Tasks that
+// are Done, and full with a tick once the project is Done. The same circle
+// shows wherever a project does, and the wedge grows smoothly as it changes.
+export function ProjectCircle({id, className, style}: {id: string; className?: string; style?: CSSProperties}) {
+	const {share, ended} = useContext(ProgressOf)(id);
+	// The wedge is a thick stroke round a small circle, so a dash as long as
+	// the share draws the pie, starting at the top.
+	const r = 4;
+	const round = 2 * Math.PI * r;
+	return (
+		<svg viewBox="0 0 24 24" data-share={share} className={cn('size-4 shrink-0', className)} style={{color: colourOf('project'), ...style}} aria-hidden>
+			<circle cx="12" cy="12" r="10" fill={ended === 'done' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" />
+			{ended === 'done' ? (
+				<path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke="var(--background)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+			) : (
+				<circle
+					cx="12"
+					cy="12"
+					r={r}
+					fill="none"
+					stroke="currentColor"
+					strokeWidth={2 * r}
+					strokeDasharray={`${share * round} ${round}`}
+					transform="rotate(-90 12 12)"
+					style={{transition: `stroke-dasharray 400ms ${ease}`}}
+				/>
+			)}
+		</svg>
+	);
+}
+
+// The symbol of a project or an area.
+export function PageIcon({page, className}: {page: Page; className?: string}) {
+	return page.kind === 'project' ? <ProjectCircle id={page.id} className={className} /> : <BoxIcon className={cn('shrink-0', className)} style={{color: colourOf('area')}} />;
+}
 
 // An area reads as the heading of the projects under it, which sit level
 // with it rather than indented. A project's Deadline shows on the right,
@@ -42,7 +87,6 @@ export function PageItem({page, title, active, picked = false, deadline = {kind:
 	});
 	// A Task dragged over it shows it will take the Task, as a list does.
 	const takesTask = isOver && drag !== null && sortableOf(String(drag.id)).kind === 'other';
-	const Icon = iconOf(page.kind);
 	return (
 		<SidebarMenuItem ref={setNodeRef} style={{transform: CSS.Translate.toString(transform), transition}} className={cn(isDragging && 'opacity-40')}>
 			<SidebarMenuButton
@@ -54,7 +98,7 @@ export function PageItem({page, title, active, picked = false, deadline = {kind:
 					if (!e.shiftKey && !e.metaKey && !e.ctrlKey) setOpenMobile(false);
 				}}
 			>
-				<Icon style={{color: colourOf(page.kind)}} />
+				<PageIcon page={page} />
 				<span>{title}</span>
 			</SidebarMenuButton>
 			{deadline.kind === 'by_day' && (
@@ -93,11 +137,10 @@ export function sortableOf(sortable: string): {kind: SortableKind; id: string} |
 export function BelongingHeading({belonging, row, style, underDay = false, onOpen}: {belonging: Belonging; row: string; style: CSSProperties; underDay?: boolean; onOpen: (page: Page) => void}) {
 	const {belongs, path, ended} = belonging;
 	if (belongs.kind === 'none') return null;
-	const Icon = iconOf(belongs.kind);
 	return (
 		<h2 data-row={row} style={style} className={cn('mb-1 font-semibold first:mt-0', underDay ? 'mt-6 text-sm [h2+&]:mt-3' : 'mt-10 border-b pb-1.5 text-base')}>
 			<button className="flex items-center gap-2 hover:text-(--icon-bright)" onClick={() => onOpen(belongs)}>
-				<Icon className="size-4" style={{color: colourOf(belongs.kind)}} />
+				<PageIcon page={belongs} />
 				{path.length > 1 && <span className="font-normal text-muted-foreground">{path[0]} ›</span>}
 				<span className={cn(ended !== 'not_ended' && 'text-muted-foreground line-through')}>{path.at(-1)}</span>
 				{ended !== 'not_ended' && <span className="text-xs font-normal text-muted-foreground">{ended}</span>}
@@ -106,9 +149,10 @@ export function BelongingHeading({belonging, row, style, underDay = false, onOpe
 	);
 }
 
-// The top of a project's or an area's page: its title and Notes to edit in
-// place, a project's area and Deadline, the projects in an area, and the
-// buttons that end it or open it again.
+// The top of a project's or an area's page, laid out as an open Task is: its
+// title and Notes to edit in place, a project's When and Deadline as buttons
+// on the left, its area and Drop in the menu on the right, and the projects
+// in an area. A project's circle marks it Done.
 export function PageTop({page, areas, projects, onOpen, onEditProject, onEditArea, onEnd}: {
 	page: Page;
 	areas: Area[];
@@ -118,17 +162,24 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 	onEditArea: (id: string, edit: AreaEdit) => void;
 	onEnd: (how: 'done' | 'dropped' | 'not_ended') => void;
 }) {
-	const [open, setOpen] = useState<'area' | 'deadline' | null>(null);
+	const [open, setOpen] = useState<'area' | 'deadline' | 'when' | null>(null);
 	const project = page.kind === 'project' ? projects.find(p => p.id === page.id) : undefined;
 	const area = page.kind === 'area' ? areas.find(a => a.id === page.id) : undefined;
 	const shown = project ?? area;
-	// Not loaded yet, or gone from a saved link.
 	if (!shown) return <p className="mb-8 text-sm text-muted-foreground">Nothing here.</p>;
 	const ended = shown.ended !== 'not_ended';
-	const Icon = iconOf(page.kind);
 	const edit = (change: ProjectEdit & AreaEdit) => (project ? onEditProject(project.id, change) : onEditArea(shown.id, {title: change.title, notes: change.notes}));
 	const inArea = project?.area.kind === 'in' ? areas.find(a => a.id === (project.area as {id: string}).id) : undefined;
 	const inside = area ? projects.filter(p => p.area.kind === 'in' && p.area.id === area.id) : [];
+	const pick = (run: () => void) => {
+		setOpen(null);
+		run();
+	};
+	// A project's When in a Task's words: in use is Anytime, parked is
+	// Someday, and a day it comes back is that day.
+	const when = project?.when ?? {kind: 'active' as const};
+	const [WhenIcon, whenColour] = placeIcons[when.kind === 'someday' ? 'someday' : when.kind === 'on_day' ? 'upcoming' : 'anytime'];
+	const whenText = when.kind === 'someday' ? 'Someday' : when.kind === 'on_day' ? dayName(when.day) : 'Anytime';
 	return (
 		<div className="mb-8 flex flex-col gap-3">
 			{inArea && (
@@ -138,7 +189,15 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 				</button>
 			)}
 			<div className="flex items-center gap-3">
-				<Icon className="size-6 shrink-0" style={{color: colourOf(page.kind)}} />
+				{project ? (
+					// Clicking the circle marks the project Done, or opens it again, as
+					// a Task's box does.
+					<button type="button" aria-label={shown.ended === 'done' ? 'Open again' : 'Mark Done'} className="shrink-0 rounded-full" onClick={() => onEnd(shown.ended === 'done' ? 'not_ended' : 'done')}>
+						<ProjectCircle id={project.id} className="size-6" />
+					</button>
+				) : (
+					<PageIcon page={page} className="size-6" />
+				)}
 				<Field
 					key={shown.id}
 					value={shown.title}
@@ -150,74 +209,91 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 			</div>
 			<Field key={`notes-${shown.id}`} value={shown.notes} placeholder="Notes" multiline onSave={notes => edit({notes})} />
 			<div className="-ml-2 flex flex-wrap items-center gap-1">
-				{ended ? (
+				{ended && (
 					<Button variant="ghost" size="sm" onClick={() => onEnd('not_ended')}>
 						<RotateCcwIcon data-icon="inline-start" />
 						{shown.ended === 'done' ? 'Done' : 'Dropped'} · reopen
 					</Button>
-				) : (
+				)}
+				{project && !ended && (
 					<>
-						{project && (
-							<Button variant="ghost" size="sm" onClick={() => onEnd('done')}>
-								<CheckIcon data-icon="inline-start" />
-								Mark Done
-							</Button>
-						)}
-						<Button variant="ghost" size="sm" onClick={() => onEnd('dropped')}>
-							Drop
-						</Button>
+						<Popover open={open === 'when'} onOpenChange={isOpen => setOpen(isOpen ? 'when' : null)}>
+							<PopoverTrigger render={<Button variant="ghost" size="sm" aria-label="When" />}>
+								<WhenIcon data-icon="inline-start" style={{color: whenColour}} />
+								{whenText}
+							</PopoverTrigger>
+							<PopoverContent className="w-auto p-1" align="start">
+								<div className="flex flex-col gap-1">
+									<p className="px-2 pt-1 text-xs font-medium text-muted-foreground">When</p>
+									<Calendar
+										mode="single"
+										weekStartsOn={1}
+										selected={when.kind === 'on_day' ? new Date(`${when.day}T12:00`) : undefined}
+										onSelect={d => d && pick(() => onEditProject(project.id, {when: {kind: 'on_day', day: dayOf(d)}}))}
+										disabled={{before: new Date(`${today()}T00:00`)}}
+									/>
+									{(['anytime', 'someday'] as const).map(place => {
+										const [PlaceIcon, colour] = placeIcons[place];
+										return (
+											<Button key={place} variant="ghost" className="justify-start" onClick={() => pick(() => onEditProject(project.id, {when: place === 'anytime' ? {kind: 'active'} : {kind: 'someday'}}))}>
+												<PlaceIcon data-icon="inline-start" style={{color: colour}} />
+												{place === 'anytime' ? 'Anytime' : 'Someday'}
+											</Button>
+										);
+									})}
+								</div>
+							</PopoverContent>
+						</Popover>
+						<Popover open={open === 'deadline'} onOpenChange={isOpen => setOpen(isOpen ? 'deadline' : null)}>
+							<PopoverTrigger render={<Button variant="ghost" size={project.deadline.kind === 'by_day' ? 'sm' : 'icon-sm'} aria-label="Deadline" />}>
+								{project.deadline.kind === 'by_day' ? <Deadline day={project.deadline.day} /> : <FlagIcon />}
+							</PopoverTrigger>
+							<PopoverContent className="w-auto p-1" align="start">
+								<DeadlinePicker deadline={project.deadline} onChange={deadline => pick(() => onEditProject(project.id, {deadline}))} />
+							</PopoverContent>
+						</Popover>
 					</>
 				)}
-				{project && (
-					<>
-						<Popover open={open === 'area'} onOpenChange={isOpen => setOpen(isOpen ? 'area' : null)}>
-							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
-								<BoxIcon data-icon="inline-start" />
-								{inArea ? inArea.title : 'No area'}
-							</PopoverTrigger>
-							<PopoverContent className="w-56 p-1" align="start">
-								{[null, ...areas.filter(a => a.ended === 'not_ended' || a.id === inArea?.id)].map(choice => {
-									const next: InArea = choice ? {kind: 'in', id: choice.id} : {kind: 'none'};
-									return (
+				{!ended && (
+					<span className="relative ml-auto">
+						{project && (
+							<Popover open={open === 'area'} onOpenChange={isOpen => setOpen(isOpen ? 'area' : null)}>
+								<PopoverTrigger render={<span className="absolute right-0 bottom-0 size-0" />} />
+								<PopoverContent className="w-56 p-1" align="end">
+									{[null, ...areas.filter(a => a.ended === 'not_ended' || a.id === inArea?.id)].map(choice => (
 										<Button
 											key={choice?.id ?? 'none'}
 											variant="ghost"
 											className="w-full justify-start"
-											onClick={() => {
-												setOpen(null);
-												onEditProject(project.id, {area: next});
-											}}
+											onClick={() => pick(() => onEditProject(project.id, {area: choice ? {kind: 'in', id: choice.id} : {kind: 'none'}}))}
 										>
 											{choice ? choice.title : 'No area'}
 											{(choice?.id ?? null) === (inArea?.id ?? null) && <CheckIcon className="ml-auto" />}
 										</Button>
-									);
-								})}
-							</PopoverContent>
-						</Popover>
-						{!ended && <WhenButton when={project.when} onWhen={when => onEditProject(project.id, {when})} />}
-						<Popover open={open === 'deadline'} onOpenChange={isOpen => setOpen(isOpen ? 'deadline' : null)}>
-							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
-								{project.deadline.kind === 'by_day' ? (
-									<Deadline day={project.deadline.day} />
-								) : (
-									<>
-										<FlagIcon data-icon="inline-start" />
-										Deadline
-									</>
-								)}
-							</PopoverTrigger>
-							<PopoverContent className="w-auto p-1" align="start">
-								<DeadlinePicker
-									deadline={project.deadline}
-									onChange={deadline => {
-										setOpen(null);
-										onEditProject(project.id, {deadline});
-									}}
-								/>
-							</PopoverContent>
-						</Popover>
-					</>
+									))}
+								</PopoverContent>
+							</Popover>
+						)}
+						<DropdownMenu>
+							<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More" />}>
+								<MoreHorizontalIcon />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-auto">
+								<DropdownMenuGroup>
+									{project && (
+										<DropdownMenuItem onClick={() => setOpen('area')}>
+											<BoxIcon />
+											{inArea ? 'Move to another area' : 'Put in an area'}
+										</DropdownMenuItem>
+									)}
+									<DropdownMenuItem onClick={() => onEnd('dropped')}>
+										<XIcon />
+										Drop
+									</DropdownMenuItem>
+								</DropdownMenuGroup>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</span>
 				)}
 			</div>
 			{inside.length > 0 && (
@@ -225,7 +301,7 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 					<h2 className="mb-1 border-b pb-1 text-sm font-semibold">Projects</h2>
 					{inside.map(p => (
 						<button key={p.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted" onClick={() => onOpen({kind: 'project', id: p.id})}>
-							<CircleIcon className="size-3.5" style={{color: 'var(--icon-bright)'}} />
+							<ProjectCircle id={p.id} className="size-3.5" />
 							<span className={cn(p.ended !== 'not_ended' && 'text-muted-foreground line-through')}>{p.title}</span>
 							{p.deadline.kind === 'by_day' && <Deadline day={p.deadline.day} />}
 						</button>
@@ -314,7 +390,6 @@ export function BelongsPicker({order, start, onPick}: {order: Belonging[]; start
 			/>
 			<div className="flex max-h-72 flex-col overflow-y-auto">
 				{entries.map((one, i) => {
-					const Icon = one.belongs.kind === 'none' ? null : iconOf(one.belongs.kind);
 					return (
 						<button
 							key={one.belongs.kind === 'none' ? 'none' : one.belongs.id}
@@ -322,9 +397,9 @@ export function BelongsPicker({order, start, onPick}: {order: Belonging[]; start
 							onMouseEnter={() => setAt(i)}
 							onClick={() => onPick(one.belongs)}
 						>
-							{Icon && one.belongs.kind !== 'none' ? (
+							{one.belongs.kind !== 'none' ? (
 								<>
-									<Icon className="size-3.5 shrink-0" style={{color: colourOf(one.belongs.kind)}} />
+									<PageIcon page={one.belongs} className="size-3.5" />
 									<span className={cn('truncate', one.belongs.kind === 'area' && 'font-semibold')}>{one.path.at(-1)}</span>
 									{one.path.length > 1 && <span className="truncate text-xs text-muted-foreground">in {one.path[0]}</span>}
 								</>

@@ -247,7 +247,7 @@ export function TaskDetail({
 					<DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="More" />}>
 						<MoreHorizontalIcon />
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" className="w-auto">
 						<DropdownMenuGroup>
 							<DropdownMenuItem onClick={() => setThreadOpen(true)}>
 								<NetworkIcon />
