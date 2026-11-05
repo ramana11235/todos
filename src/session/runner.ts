@@ -7,6 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {homedir} from 'node:os';
 import type {Thread} from '../core/thread.js';
+import {controlCharacters} from '../core/threads.js';
 import {homeWindow, tasksPaneWidth, thoughtsHeight, tmuxSession} from './tmux-config.js';
 import type {Tmux} from './tmux.js';
 
@@ -114,7 +115,7 @@ export class SessionRunner {
 	// shortcut: anything I left half typed in that pane is sent along with
 	// it; clear the line first if that ever bites.
 	type(pane: string, text: string): void {
-		this.tmux.run(['set-buffer', '-b', 'todos-prompt', '--', text]);
+		this.tmux.run(['set-buffer', '-b', 'todos-prompt', '--', pasteable(text)]);
 		this.tmux.run(['paste-buffer', '-p', '-d', '-b', 'todos-prompt', '-t', pane]);
 		this.tmux.run(['send-keys', '-t', pane, 'Enter']);
 	}
@@ -210,3 +211,7 @@ export class SessionRunner {
 
 const envArgs = (env: Record<string, string>): string[] =>
 	Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]);
+
+// The API refuses control characters in a prompt, and they are taken out
+// here too, in case an older API kept one.
+export const pasteable = (text: string): string => text.replace(new RegExp(controlCharacters, 'g'), '');

@@ -241,6 +241,7 @@ export class Threads {
 	async sendPrompt(threadId: string, text: string | null): Promise<Prompt> {
 		await this.get(threadId);
 		if (text !== null && (typeof text !== 'string' || !text.trim())) throw new ThreadError('invalid', 'A prompt needs some text');
+		if (text !== null && controlCharacters.test(text)) throw new ThreadError('invalid', 'A prompt can only hold text, new lines and tabs');
 		const prompt: Prompt = {id: randomUUID(), threadId, text: text?.trim() ?? null, createdAt: this.stamp()};
 		await this.storage.savePrompt(prompt);
 		return prompt;
@@ -331,6 +332,12 @@ function oneOf<T extends string>(value: unknown, allowed: T[], name: string): T 
 	if (allowed.includes(value as T)) return value as T;
 	throw new ThreadError('invalid', `${name} is one of ${allowed.join(', ')}`);
 }
+
+// A prompt is pasted into a Session as text. A control character, such as
+// the escape that ends a paste, would let the rest of it press keys instead,
+// such as Shift+Tab, which changes what the Session may do without asking.
+// Only new lines and tabs are text.
+export const controlCharacters = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
 
 function requireTitle(title: string): string {
 	const trimmed = title.trim();

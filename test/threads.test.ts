@@ -362,3 +362,17 @@ describe('changes that arrive at the same time', () => {
 		expect(await threads.get(a.id)).toMatchObject({title: 'A renamed', sessionSignal: 'busy'});
 	});
 });
+
+describe('prompts', () => {
+	it('refuses a prompt with a control character, which could press keys in the Session', async () => {
+		const thread = await threads.create({title: 'Fix CI'});
+		await expect(threads.sendPrompt(thread.id, 'Rerun CI\u001b[201~\u001b[Z')).rejects.toThrow('A prompt can only hold text, new lines and tabs');
+		expect(await threads.prompts()).toEqual([]);
+	});
+
+	it('takes a prompt of several lines with tabs', async () => {
+		const thread = await threads.create({title: 'Fix CI'});
+		await threads.sendPrompt(thread.id, 'Rerun CI\n\tthen tell me');
+		expect((await threads.prompts()).map(p => p.text)).toEqual(['Rerun CI\n\tthen tell me']);
+	});
+});
