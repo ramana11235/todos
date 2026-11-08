@@ -1,9 +1,10 @@
-import {useEffect, useLayoutEffect, useRef} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {CheckIcon, SettingsIcon} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import type {AccentColour} from '../../src/core/settings';
 import {ease, ms, pinned} from './motion';
+import {askForPush, pushAsk} from './push';
 
 // Each accent colour in OKLCH. All but red share the blue's brightness and
 // strength; red is a little stronger so it reads as red. index.css draws
@@ -89,10 +90,31 @@ export function Settings({open, onOpen, onClose, accentColour, onPickColour}: {
 								))}
 							</div>
 						</section>
+						<Notifications />
 					</div>
 				</div>,
 				document.body,
 			)}
 		</>
+	);
+}
+
+// Asks this device to show Reminders as notifications, for one that has not
+// been asked by setting a Reminder yet. It goes once the device says yes,
+// and says where to change it once the device said no.
+function Notifications() {
+	const [ask, setAsk] = useState(pushAsk);
+	if (ask === 'cannot' || ask === 'allowed') return null;
+	return (
+		<section className="flex flex-col gap-2 px-2 pt-3 pb-1">
+			<h3 className="text-xs font-medium text-muted-foreground">Notifications</h3>
+			{ask === 'ask' ? (
+				<Button variant="outline" size="sm" className="self-start" onClick={() => void askForPush().then(setAsk)}>
+					Send reminders to this device
+				</Button>
+			) : (
+				<p className="text-sm text-muted-foreground">This device blocks notifications from todos. Allow them in its settings to get reminders here.</p>
+			)}
+		</section>
 	);
 }

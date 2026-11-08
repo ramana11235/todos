@@ -11,6 +11,7 @@ import {createApi} from '../../src/api/server.js';
 import {Client} from '../../src/client/client.js';
 import {Projects} from '../../src/core/projects.js';
 import {InstanceSettings} from '../../src/core/settings.js';
+import {PushDevices} from '../../src/core/push.js';
 import {Tasks} from '../../src/core/tasks.js';
 import {Thoughts} from '../../src/core/thoughts.js';
 import {Threads} from '../../src/core/threads.js';
@@ -22,7 +23,7 @@ export const test = base.extend<{todos: Todos}>({
 	todos: async ({}, use) => {
 		const folder = mkdtempSync(join(tmpdir(), 'todos-browser-'));
 		const storage = new SqliteStorage(join(folder, 'todos.db'));
-		const server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), {
+		const server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), new PushDevices(storage, {kind: 'none'}), {
 			web: resolve(import.meta.dirname, '../../dist/web'),
 		});
 		await new Promise<void>(done => server.listen(0, '127.0.0.1', done));

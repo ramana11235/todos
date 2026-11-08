@@ -4,17 +4,19 @@
 import {requireAccess} from './api/access.js';
 import {createHandler} from './api/api.js';
 import {Projects} from './core/projects.js';
+import {PushDevices} from './core/push.js';
 import {InstanceSettings} from './core/settings.js';
 import {Tasks} from './core/tasks.js';
 import {Thoughts} from './core/thoughts.js';
 import {Threads} from './core/threads.js';
 import {DurableObjectClock, type DurableObjectNamespace} from './reminders/alarm.js';
+import {hostedPushKeys, type PushSecrets} from './reminders/webpush.js';
 import {D1Storage, type D1Database} from './storage/d1.js';
 
 // Cloudflare finds each item's Reminder alarm by this export's name.
 export {ReminderAlarm} from './reminders/alarm.js';
 
-type Env = {DB: D1Database; REMINDERS: DurableObjectNamespace; ACCESS_TEAM: string; ACCESS_AUD: string};
+type Env = PushSecrets & {DB: D1Database; REMINDERS: DurableObjectNamespace; ACCESS_TEAM: string; ACCESS_AUD: string};
 
 let handler: ReturnType<typeof requireAccess> | undefined;
 
@@ -25,7 +27,7 @@ export default {
 		if (!handler) {
 			const storage = new D1Storage(env.DB);
 			const clock = new DurableObjectClock(env.REMINDERS);
-			const api = createHandler(new Threads(storage, undefined, clock), new Tasks(storage, undefined, clock), new Thoughts(storage), new Projects(storage, undefined, clock), new InstanceSettings(storage));
+			const api = createHandler(new Threads(storage, undefined, clock), new Tasks(storage, undefined, clock), new Thoughts(storage), new Projects(storage, undefined, clock), new InstanceSettings(storage), new PushDevices(storage, hostedPushKeys(env)));
 			handler = requireAccess(api, {team: env.ACCESS_TEAM, audience: env.ACCESS_AUD});
 		}
 		return handler(request);

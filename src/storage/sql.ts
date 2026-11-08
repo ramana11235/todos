@@ -1,4 +1,5 @@
 import type {Area, Belongs, InArea, Project} from '../core/project.js';
+import type {PushDevice} from '../core/push.js';
 import type {Reminder} from '../core/reminder.js';
 import type {Place, Task, TaskWhen} from '../core/task.js';
 import type {Settings} from '../core/settings.js';
@@ -234,6 +235,23 @@ export abstract class SqlStorage implements Storage {
 
 	async updateSettings(changes: Partial<Settings>): Promise<void> {
 		if (changes.accentColour !== undefined) await this.db.run('UPDATE settings SET accent_colour = ?', changes.accentColour);
+	}
+
+	async addPushDevice(device: PushDevice): Promise<void> {
+		await this.db.run(
+			`INSERT INTO push_devices (endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?)
+				ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
+			device.endpoint, device.keys.p256dh, device.keys.auth, new Date().toISOString(),
+		);
+	}
+
+	async listPushDevices(): Promise<PushDevice[]> {
+		const rows = await this.db.all<{endpoint: string; p256dh: string; auth: string}>('SELECT endpoint, p256dh, auth FROM push_devices ORDER BY created_at');
+		return rows.map(row => ({endpoint: row.endpoint, keys: {p256dh: row.p256dh, auth: row.auth}}));
+	}
+
+	async removePushDevice(endpoint: string): Promise<void> {
+		await this.db.run('DELETE FROM push_devices WHERE endpoint = ?', endpoint);
 	}
 
 	abstract close(): void;

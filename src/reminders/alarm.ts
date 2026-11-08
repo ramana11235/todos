@@ -6,6 +6,7 @@
 import type {ReminderClock, ReminderItem} from '../core/reminder.js';
 import {Reminders} from '../core/reminders.js';
 import {D1Storage, type D1Database} from '../storage/d1.js';
+import {hostedPushKeys, notifierFor, type PushSecrets} from './webpush.js';
 
 // The parts of Cloudflare's Durable Object bindings used here, so nothing
 // imports Cloudflare's own module and the Worker still loads in Node's tests.
@@ -45,7 +46,7 @@ export class DurableObjectClock implements ReminderClock {
 export class ReminderAlarm {
 	constructor(
 		private readonly state: DurableObjectState,
-		private readonly env: {DB: D1Database},
+		private readonly env: PushSecrets & {DB: D1Database},
 	) {}
 
 	async fetch(request: Request): Promise<Response> {
@@ -64,7 +65,10 @@ export class ReminderAlarm {
 	// An error here makes Cloudflare try again, a few times, with a growing wait.
 	async alarm(): Promise<void> {
 		const item = await this.state.storage.get<ReminderItem>('item');
-		if (item) await new Reminders(new D1Storage(this.env.DB)).came(item);
+		if (item) {
+			const storage = new D1Storage(this.env.DB);
+			await new Reminders(storage, undefined, notifierFor(storage, hostedPushKeys(this.env))).came(item);
+		}
 		await this.state.storage.deleteAll();
 	}
 }

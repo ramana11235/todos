@@ -96,7 +96,7 @@ A day set on a **Task** on which it moves into **Today** by itself; until then i
 _Avoid_: Start date, scheduled, due date
 
 **Reminder**:
-A day and a time on a **Task**, a **Thread** or a **Project** when todos tells me about it. Once its time comes it is due, with a quiet dot on a bell, until I open its item from the bell, clear it, or the item ends, which uses it up. It is separate from a **Date**, a **When** or a day and moves nothing; each has at most one. An **Area** and a step of a **Checklist** have none.
+A day and a time on a **Task**, a **Thread** or a **Project** when todos tells me about it. Once its time comes it is due, with a quiet dot on a bell and a notification showing its item's title on every device where I allowed notifications, until I open its item from the bell, clear it, or the item ends, which uses it up. It is separate from a **Date**, a **When** or a day and moves nothing; each has at most one. An **Area** and a step of a **Checklist** have none.
 _Avoid_: Alert, alarm
 
 **Deadline**:

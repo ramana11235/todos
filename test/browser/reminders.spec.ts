@@ -100,3 +100,15 @@ test.describe("a Thread's and a project's Reminder", () => {
 		expect(page.url()).toContain(`#project/${project.id}`);
 	});
 });
+
+test.describe('a notification of a due Reminder', () => {
+	test('tapped when the app is closed, opens its Task and uses the Reminder up', async ({page, todos}) => {
+		const task = await todos.client.addTask({title: 'Call the dentist', when: {kind: 'anytime'}, reminder: {kind: 'set', at: '2020-01-01T09:00:00.000Z'}});
+		await page.goto(`${todos.url}/?reminder=task:${task.id}`);
+		await page.locator(`main [data-task="${task.id}"] textarea`).waitFor();
+		await settled(page);
+		expect((await todos.client.task(task.id)).reminder).toEqual({kind: 'none'});
+		expect(await dueDot(page).count()).toBe(0);
+		expect(new URL(page.url()).search).toBe('');
+	});
+});

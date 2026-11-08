@@ -3,6 +3,7 @@ import type {Task} from '../core/task.js';
 import type {Settings} from '../core/settings.js';
 import type {Page} from '../core/thoughts.js';
 import type {Prompt, Thread} from '../core/thread.js';
+import type {PushDevice} from '../core/push.js';
 
 // Where Threads and Tasks are kept. Every method is async so that D1 can stand in for
 // the local SQLite file in the cloud without changes elsewhere.
@@ -44,5 +45,9 @@ export interface Storage {
 	getSettings(): Promise<Settings>;
 	// Writes only the given settings.
 	updateSettings(changes: Partial<Settings>): Promise<void>;
+	// Adding a device it already has replaces its keys.
+	addPushDevice(device: PushDevice): Promise<void>;
+	listPushDevices(): Promise<PushDevice[]>;
+	removePushDevice(endpoint: string): Promise<void>;
 	close(): void;
 }

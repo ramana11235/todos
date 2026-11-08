@@ -12,7 +12,7 @@ import {createApi} from './api/server.js';
 import {InstanceSettings} from './core/settings.js';
 import {apiAction, buildId, onNewBuild} from './build.js';
 import {Client} from './client/client.js';
-import {apiHeaders, apiPort, apiUrl, databasePath, settings, settingsPath, tmuxSocket, todosHome} from './config.js';
+import {apiHeaders, apiPort, apiUrl, databasePath, pushKeys, settings, settingsPath, tmuxSocket, todosHome} from './config.js';
 import {Projects} from './core/projects.js';
 import {Reminders} from './core/reminders.js';
 import {Tasks} from './core/tasks.js';
@@ -33,6 +33,8 @@ import {homeWindow, tmuxConfig, tmuxSession} from './session/tmux-config.js';
 import {minimumTmux, Tmux, tmuxIsNewEnough} from './session/tmux.js';
 import {backup, backupHosted} from './storage/backup.js';
 import {TimerClock} from './reminders/timers.js';
+import {notifierFor} from './reminders/webpush.js';
+import {PushDevices} from './core/push.js';
 import {SqliteStorage} from './storage/sqlite.js';
 
 const [command, ...args] = process.argv.slice(2);
@@ -122,10 +124,12 @@ async function serve(): Promise<void> {
 	if (settings().instance === 'hosted') throw new Error(`${settingsPath()} says this home uses the hosted Instance, so it runs no API of its own.`);
 	mkdirSync(todosHome(), {recursive: true});
 	const storage = new SqliteStorage(databasePath());
-	const reminders = new Reminders(storage);
+	const keys = pushKeys();
+	const reminders = new Reminders(storage, undefined, notifierFor(storage, keys));
 	const clock = new TimerClock(item => reminders.came(item));
 	await reminders.wakeAll(clock);
-	const server = createApi(new Threads(storage, undefined, clock), new Tasks(storage, undefined, clock), new Thoughts(storage), new Projects(storage, undefined, clock), new InstanceSettings(storage), {
+	const push = new PushDevices(storage, keys);
+	const server = createApi(new Threads(storage, undefined, clock), new Tasks(storage, undefined, clock), new Thoughts(storage), new Projects(storage, undefined, clock), new InstanceSettings(storage), push, {
 		build: buildId(),
 		home: todosHome(),
 		// The web app is built next to this file, into dist/web.

@@ -9,6 +9,7 @@ import {ApiError, Client} from '../src/client/client.js';
 import {Tasks} from '../src/core/tasks.js';
 import {Projects} from '../src/core/projects.js';
 import {InstanceSettings} from '../src/core/settings.js';
+import {PushDevices} from '../src/core/push.js';
 import {Thoughts} from '../src/core/thoughts.js';
 import {Threads} from '../src/core/threads.js';
 import {SqliteStorage} from '../src/storage/sqlite.js';
@@ -21,7 +22,7 @@ let web: string;
 
 const start = async () => {
 	storage = new SqliteStorage(dbPath);
-	server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), {web});
+	server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), new PushDevices(storage, {kind: 'none'}), {web});
 	await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 	client = new Client(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
 };

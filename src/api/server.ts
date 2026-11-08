@@ -6,6 +6,7 @@ import {createServer, type IncomingMessage, type Server, type ServerResponse} fr
 import type {AddressInfo} from 'node:net';
 import {extname, join, normalize} from 'node:path';
 import type {Projects} from '../core/projects.js';
+import type {PushDevices} from '../core/push.js';
 import type {InstanceSettings} from '../core/settings.js';
 import type {Tasks} from '../core/tasks.js';
 import type {Thoughts} from '../core/thoughts.js';
@@ -21,9 +22,10 @@ export function createApi(
 	thoughts: Thoughts,
 	projects: Projects,
 	settings: InstanceSettings,
+	push: PushDevices,
 	{build = null, home = null, web = null}: {build?: string | null; home?: string | null; web?: string | null} = {},
 ): Server {
-	const handle = createHandler(threads, tasks, thoughts, projects, settings, {build, home, pid: process.pid});
+	const handle = createHandler(threads, tasks, thoughts, projects, settings, push, {build, home, pid: process.pid});
 	const server = createServer(async (request, response) => {
 		// Only a request sent to the laptop itself is answered. A web page can
 		// make its own name point at 127.0.0.1 and then reach this API as if

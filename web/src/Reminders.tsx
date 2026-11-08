@@ -8,6 +8,7 @@ import {dayOf} from '../../src/core/task';
 import {reminderName} from '../../src/core/words';
 import {dayName, today} from './days';
 import {ease, ms} from './motion';
+import {askForPush} from './push';
 import {begin} from './settled';
 
 // A Reminder's moment as I read it on this device, such as "Tomorrow 18:30".
@@ -35,7 +36,15 @@ export function ReminderPicker({reminder, onChange}: {reminder: Reminder; onChan
 				<span className="text-muted-foreground">At</span>
 				<input type="time" aria-label="Time" value={time} onChange={e => e.currentTarget.value && setTime(e.currentTarget.value)} className="rounded-md border bg-transparent px-2 py-1 text-sm" />
 			</label>
-			<Button className="mx-1" onClick={() => onChange({kind: 'set', at: new Date(`${day}T${time}`).toISOString()})}>
+			<Button
+				className="mx-1"
+				onClick={() => {
+					// The first Reminder set on a device is when it is asked to
+					// show notifications, since a browser asks only after a tap.
+					void askForPush();
+					onChange({kind: 'set', at: new Date(`${day}T${time}`).toISOString()});
+				}}
+			>
 				Remind me {['Today', 'Tomorrow'].includes(dayName(day)) ? dayName(day).toLowerCase() : dayName(day)} at {time}
 			</Button>
 			{reminder.kind !== 'none' && (

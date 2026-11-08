@@ -8,6 +8,7 @@ import {Client} from '../src/client/client.js';
 import {Tasks} from '../src/core/tasks.js';
 import {Projects} from '../src/core/projects.js';
 import {InstanceSettings} from '../src/core/settings.js';
+import {PushDevices} from '../src/core/push.js';
 import {Thoughts} from '../src/core/thoughts.js';
 import {Threads} from '../src/core/threads.js';
 import {afterAll} from 'vitest';
@@ -31,7 +32,7 @@ export async function makeStorage(path = ':memory:'): Promise<Storage> {
 	if (process.env.TODOS_TEST_STORAGE !== 'd1') return new SqliteStorage(path);
 	proxy ??= await getPlatformProxy({configPath: 'wrangler.example.jsonc', persist: false, remoteBindings: false});
 	const d1 = proxy.env.DB;
-	const tables = ['areas', 'changes', 'projects', 'prompts', 'settings', 'tasks', 'threads', 'thoughts'];
+	const tables = ['areas', 'changes', 'projects', 'prompts', 'push_devices', 'settings', 'tasks', 'threads', 'thoughts'];
 	// shortcut: splits migrations on semicolons at line ends, which holds while
 	// no migration has one inside a string.
 	const statements = [...tables.map(table => `DROP TABLE IF EXISTS ${table}`), ...migrations().flatMap(sql => sql.split(/;\s*$/m))]
@@ -44,7 +45,7 @@ export async function makeStorage(path = ':memory:'): Promise<Storage> {
 // A real API on a temporary SQLite file, for tests that go through the Client.
 export async function startApi(): Promise<{client: Client; url: string; stop: () => Promise<void>}> {
 	const storage = await makeStorage(join(mkdtempSync(join(tmpdir(), 'todos-')), 'todos.db'));
-	const server: Server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage));
+	const server: Server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), new PushDevices(storage, {kind: 'none'}));
 	await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
 	const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	return {

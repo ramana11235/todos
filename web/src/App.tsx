@@ -42,6 +42,8 @@ import {
 } from '@/components/ui/sidebar';
 import {useIsMobile} from '@/hooks/use-mobile';
 import {ApiError, Client, type Seen} from '../../src/client/client';
+import type {ReminderItem} from '../../src/core/reminder';
+import {notifiedItem, onNotified, startPush} from './push';
 import {belongingOrder, belongsKey, groupedByBelonging, sameBelongs, taskBelongs, threadBelongs, type Area, type Belonging, type Belongs, type Project} from '../../src/core/project';
 import type {AreaEdit, ProjectEdit} from '../../src/core/projects';
 import type {AccentColour} from '../../src/core/settings';
@@ -988,6 +990,24 @@ export function App() {
 		setOpenId(task.id);
 	};
 	const bell = <Bell items={reminded} onOpen={openFromBell} onClear={clearReminder} />;
+
+	// Tapping a notification opens its item as the bell does. One that opened
+	// the app waits for the first load, and then leaves the address.
+	const notified = useRef(notifiedItem());
+	const openNotified = (item: ReminderItem) =>
+		openFromBell(reminded.find(one => one.kind === item.kind && one.id === item.id) ?? {...item, title: '', reminder: {kind: 'none'}});
+	const openNotifiedNow = useRef(openNotified);
+	openNotifiedNow.current = openNotified;
+	useEffect(() => {
+		if (!notified.current || seen.current.kind === 'nothing') return;
+		openNotified(notified.current);
+		notified.current = null;
+		history.replaceState(history.state, '', window.location.pathname + window.location.hash);
+	});
+	useEffect(() => onNotified(item => openNotifiedNow.current(item)), []);
+	useEffect(() => {
+		void startPush(client).catch(() => {});
+	}, []);
 
 	const openPage = (page: Page) => {
 		setView(view === 'threads' || showsEnded(view) ? 'anytime' : view);

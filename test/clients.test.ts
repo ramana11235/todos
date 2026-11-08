@@ -11,6 +11,7 @@ import {createHandler, type BatchRequest} from '../src/api/api.js';
 import {Client} from '../src/client/client.js';
 import {Tasks, type NewTask, type TaskEdit} from '../src/core/tasks.js';
 import {Projects} from '../src/core/projects.js';
+import {PushDevices} from '../src/core/push.js';
 import {InstanceSettings} from '../src/core/settings.js';
 import {Thoughts} from '../src/core/thoughts.js';
 import {Threads, type MyEdit, type SessionUpdate} from '../src/core/threads.js';
@@ -149,7 +150,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('the clients and the API', () => {
 	it('have a Client method for every route, and no Client method calling a route that is gone', async () => {
 		const storage = await makeStorage();
-		const {routes} = createHandler(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage));
+		const {routes} = createHandler(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), new PushDevices(storage, {kind: 'none'}));
 		const called: string[] = [];
 		vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
 			called.push(`${init.method} ${new URL(url).pathname}`);

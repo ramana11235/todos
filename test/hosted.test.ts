@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {ApiError, Client} from '../src/client/client.js';
-import {apiHeaders, apiUrl, settings} from '../src/config.js';
+import {apiHeaders, apiUrl, pushKeys, settings} from '../src/config.js';
 
 describe('a laptop that uses the hosted Instance', () => {
 	const saved = {home: process.env.TODOS_HOME, url: process.env.TODOS_API_URL, port: process.env.TODOS_PORT};
@@ -31,6 +31,14 @@ describe('a laptop that uses the hosted Instance', () => {
 		expect(settings()).toEqual({instance: 'local'});
 		expect(apiUrl()).toBe('http://127.0.0.1:7316');
 		expect(apiHeaders()).toEqual({});
+	});
+
+	it('signs notifications with the push keys in settings.json, and sends none without them', () => {
+		expect(pushKeys()).toEqual({kind: 'none'});
+		write({instance: 'local', push: {publicKey: 'public', privateKey: 'private'}});
+		expect(pushKeys()).toEqual({kind: 'set', publicKey: 'public', privateKey: 'private'});
+		write({instance: 'local', push: {publicKey: 'public'}});
+		expect(() => pushKeys()).toThrow('publicKey and a privateKey');
 	});
 
 	it('is local when settings.json says so', () => {

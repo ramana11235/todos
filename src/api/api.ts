@@ -5,6 +5,7 @@
 
 import {doneTasksByProject, type Area, type Project} from '../core/project.js';
 import type {Projects} from '../core/projects.js';
+import type {PushDevices} from '../core/push.js';
 import type {InstanceSettings, Settings} from '../core/settings.js';
 import type {Task} from '../core/task.js';
 import type {Tasks} from '../core/tasks.js';
@@ -60,6 +61,7 @@ export function createHandler(
 	thoughts: Thoughts,
 	projects: Projects,
 	settings: InstanceSettings,
+	push: PushDevices,
 	{build = null, home = null, pid = null}: {build?: string | null; home?: string | null; pid?: number | null} = {},
 ): ApiHandler & {routes: string[]} {
 	const routes: Array<[method: string, pattern: string, handler: Handler]> = [
@@ -127,6 +129,8 @@ export function createHandler(
 		['PUT', '/api/thoughts', async (_, body) => thoughts.save(body.text, body.version)],
 		['GET', '/api/settings', async () => settings.get()],
 		['PATCH', '/api/settings', async (_, body) => settings.edit(body)],
+		['GET', '/api/push', async () => push.publicKey()],
+		['PUT', '/api/push/devices', async (_, body) => push.add(body)],
 		// Runs each change in order and stops at the first that fails, keeping
 		// the ones before it (docs/adr/0004). The batch failed when its last
 		// result's status is not 200 or it says `updated: false`, and the

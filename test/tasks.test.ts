@@ -4,6 +4,7 @@ import {Thoughts} from '../src/core/thoughts.js';
 import {listOf, listRows, type Task} from '../src/core/task.js';
 import {belongingOrder} from '../src/core/project.js';
 import {Projects} from '../src/core/projects.js';
+import {PushDevices} from '../src/core/push.js';
 import {InstanceSettings} from '../src/core/settings.js';
 import {Tasks} from '../src/core/tasks.js';
 import {ThreadError, Threads} from '../src/core/threads.js';
@@ -403,7 +404,7 @@ describe('turning a Task into a Thread', () => {
 		for (const n of [1, 2, 3, 4]) ids.push((await tasks.add({title: `Task ${n}`, checklist: Array.from({length: 20}, (_, s) => ({title: `Step ${s}`}))})).id);
 		const others = Array.from({length: batchLimit - turnsIntoThreadsLimit}, (_, n) => ({method: 'PATCH', path: `/api/threads/${thread.id}`, body: {title: `Plan ${n}`}}));
 		const store = counted();
-		const handle = createHandler(new Threads(store), new Tasks(store), new Thoughts(store), new Projects(store), new InstanceSettings(store));
+		const handle = createHandler(new Threads(store), new Tasks(store), new Thoughts(store), new Projects(store), new InstanceSettings(store), new PushDevices(store, {kind: 'none'}));
 		calls = 0;
 		const response = await handle(new Request('http://localhost/api/batch', {
 			method: 'POST',

@@ -6,6 +6,7 @@ import type {Area, Belongs, Project} from '../core/project.js';
 import type {AreaEdit, NewProject, ProjectEdit} from '../core/projects.js';
 import type {Task} from '../core/task.js';
 import type {NewTask, TaskEdit} from '../core/tasks.js';
+import type {PushDevice} from '../core/push.js';
 import type {Settings, SettingsEdit} from '../core/settings.js';
 import type {Page, SaveResult} from '../core/thoughts.js';
 import type {Deadline, Prompt, SessionSignal, Thread, When} from '../core/thread.js';
@@ -127,6 +128,10 @@ export class Client {
 	settings = (): Promise<Settings> => this.call('GET', '/api/settings');
 
 	editSettings = (edit: SettingsEdit): Promise<Settings> => this.call('PATCH', '/api/settings', edit);
+
+	pushKey = (): Promise<{kind: 'none'} | {kind: 'set'; publicKey: string}> => this.call('GET', '/api/push');
+
+	addPushDevice = (subscription: unknown): Promise<PushDevice> => this.call('PUT', '/api/push/devices', subscription);
 
 	saveThoughts = (text: string, version: number): Promise<SaveResult> =>
 		this.call('PUT', '/api/thoughts', {text, version});

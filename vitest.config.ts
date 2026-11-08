@@ -19,7 +19,7 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: 'd1',
-					include: ['test/{threads,tasks,mcp,hooks,reminders}.test.ts'],
+					include: ['test/{threads,tasks,mcp,hooks,reminders,push}.test.ts'],
 					env: {TODOS_TEST_STORAGE: 'd1'},
 				},
 			},

@@ -104,6 +104,26 @@ Make the Cloudflare API token an Account API token from the "Edit Cloudflare Wor
 
 Once the deploy has passed, run `git pull && npm install && npm run build` on each computer as usual.
 
+#### Notifications
+
+A due Reminder is sent as a notification to every device where you allowed it, by web push. Push services only accept notifications signed with the Instance's own key pair, so each Instance needs one. Without it, Reminders still come due in the app, and no device is asked to allow notifications.
+
+1. Make a key pair in a terminal of your own: `npx web-push generate-vapid-keys`. It prints a public key and a private key. Never commit the private key.
+2. For the hosted Instance, run these from the repo folder and paste each key when asked:
+
+   ```sh
+   npx wrangler secret put VAPID_PUBLIC_KEY
+   npx wrangler secret put VAPID_PRIVATE_KEY
+   ```
+
+3. For a local Instance, add the pair to its `settings.json`, next to what is there, and restart it by running `todos`:
+
+   ```json
+   "push": {"publicKey": "<public key>", "privateKey": "<private key>"}
+   ```
+
+4. On an iPhone, open the web app in Safari, choose Share, then Add to Home Screen, and open it from there, since iOS only lets a home-screen web app show notifications. Each device is asked the first time a Reminder is set on it, or from "Send reminders to this device" in Settings.
+
 #### Use the hosted Instance from a computer
 
 A computer that uses the hosted Instance runs Home and its Sessions as usual, but runs no API and keeps no data of its own. Clone and build todos as in steps 1 and 2 of "Set up a local Instance", then:
