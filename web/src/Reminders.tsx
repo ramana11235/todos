@@ -5,16 +5,13 @@ import {Calendar} from '@/components/ui/calendar';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import type {Reminder} from '../../src/core/reminder';
 import {dayOf} from '../../src/core/task';
+import {reminderName} from '../../src/core/words';
 import {dayName, today} from './days';
 import {ease, ms} from './motion';
 import {begin} from './settled';
 
-// A Reminder's moment as I read it on this device: its day in words, then
-// the time, such as "Tomorrow 18:30".
-export function reminderText(at: string): string {
-	const moment = new Date(at);
-	return `${dayName(dayOf(moment))} ${timeOf(moment)}`;
-}
+// A Reminder's moment as I read it on this device, such as "Tomorrow 18:30".
+export const reminderText = (at: string) => reminderName(at, today());
 
 const timeOf = (moment: Date) => `${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
 

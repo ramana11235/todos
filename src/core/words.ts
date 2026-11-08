@@ -29,3 +29,11 @@ export const deadlineName = (day: string, today: string): string => {
 	const left = daysLeft(day, today);
 	return left < 0 ? `${-left}d overdue` : left === 0 ? 'Due today' : left <= 6 ? `${left}d left` : dayName(day, today);
 };
+
+// How a Reminder's moment reads on this device's clock: its day in words,
+// then the time, such as "Tomorrow 18:30".
+export function reminderName(at: string, today: string): string {
+	const moment = new Date(at);
+	const day = `${moment.getFullYear()}-${String(moment.getMonth() + 1).padStart(2, '0')}-${String(moment.getDate()).padStart(2, '0')}`;
+	return `${dayName(day, today)} ${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
+}

@@ -66,6 +66,32 @@ describe('Home', () => {
 		applyAccentColour('blue');
 	});
 
+	it('shows a dot beside Home while a Reminder is due, and b lists Reminders, opening one selects its Thread and uses it up', async () => {
+		const move = (await client.threads()).find(thread => thread.title === 'Move house')!;
+		await client.edit(move.id, {reminder: {kind: 'set', at: '2020-01-01T09:00:00.000Z'}});
+		const {lastFrame, stdin, unmount} = show();
+		await settle();
+		expect(lastFrame()).toContain('Home ●');
+		await keys(stdin, 'b');
+		expect(lastFrame()).toContain('Due');
+		expect(lastFrame()).toContain('j k move · ⏎ open · c clear · esc close');
+		await keys(stdin, '\r');
+		expect(selectedTitle(lastFrame()!)).toBe('Move house');
+		expect((await client.thread(move.id)).reminder).toEqual({kind: 'none'});
+		await settle();
+		expect(lastFrame()).not.toContain('Home ●');
+		unmount();
+	});
+
+	it('closes the Reminders list with Esc', async () => {
+		const {lastFrame, stdin, unmount} = show();
+		await keys(stdin, 'b');
+		expect(lastFrame()).toContain('Nothing is due.');
+		await keys(stdin, '\u001b');
+		expect(lastFrame()).not.toContain('Nothing is due.');
+		unmount();
+	});
+
 	it('draws the tree with tree lines and nothing after the titles', async () => {
 		const {lastFrame, unmount} = show();
 		await settle();

@@ -6,10 +6,11 @@ import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import type {Client, Seen} from '../client/client.js';
 import {belongsPath, homeRows, threadBelongs, type Area, type Belongs, type HomeRow, type Project} from '../core/project.js';
-import {dayOf} from '../core/task.js';
+import type {Reminder} from '../core/reminder.js';
+import {dayOf, type Task} from '../core/task.js';
 import {ancestorsOf, descendantsOf, directoryOf, isActive, type ShownMove, type Thread, type View} from '../core/thread.js';
 import type {OpenResult} from '../session/runner.js';
-import {dayName, daysLeft, deadlineName, moveName, whenName} from '../core/words.js';
+import {dayName, daysLeft, deadlineName, moveName, reminderName, whenName} from '../core/words.js';
 import {applyAccentColour, colours, Logo, Shimmer} from './look.js';
 import {TextInput} from './text-input.js';
 
@@ -54,7 +55,9 @@ type Mode =
 	// refold and refocus say what to put back if it is cancelled.
 	| {kind: 'new'; place: NewPlace; title: string; refold: boolean; refocus: string | null}
 	| {kind: 'search'; query: string}
-	| {kind: 'directory'; id: string; value: string};
+	| {kind: 'directory'; id: string; value: string}
+	// The list of Reminders, opened with b, with the one picked.
+	| {kind: 'reminders'; at: number};
 
 // Starts the message shown while todos cannot be reached, so it can be told
 // apart from other messages and cleared once todos answers again. Home and the
@@ -89,6 +92,7 @@ export function Home(deps: HomeDeps) {
 	const {columns, rows: height} = useWindowSize();
 	const [threads, setThreads] = useState<Thread[]>([]);
 	const [belongings, setBelongings] = useState<{projects: Project[]; areas: Area[]}>({projects: [], areas: []});
+	const [reminded, setReminded] = useState<Reminded[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [view, setView] = useState<Exclude<View, 'all'>>('active');
 	const [folded, setFoldedState] = useState<Set<string>>(() => new Set(deps.initialFolded ?? []));
@@ -121,6 +125,7 @@ export function Home(deps: HomeDeps) {
 				known.current = changes.threads;
 				applyAccentColour(changes.settings.accentColour);
 				setBelongings({projects: changes.projects, areas: changes.areas});
+				setReminded(remindedOf(changes.tasks, changes.threads, changes.projects));
 			}
 			// A Session whose pane has gone is no longer busy or asking, so its
 			// Thread goes back to the state last set on it. A pane going changes
@@ -311,7 +316,46 @@ export function Home(deps: HomeDeps) {
 		void act(async () => select((place.kind === 'child' ? await client.create(title, place.parentId) : await client.create(title, null, place.afterId, {belongs: place.belongs})).id));
 	};
 
+	// Shows a row in the tree: out of focus and folds, and in the view that
+	// has it, bringing in Someday when it is there.
+	const reveal = (id: string) => {
+		const all = (seen: Exclude<View, 'all'>) => homeRows(threads, belongings.projects, belongings.areas, {view: seen, today, keep});
+		const into = all(view).some(row => row.id === id) ? view : (['active', 'bring_in', 'ended'] as const).find(seen => all(seen).some(row => row.id === id));
+		if (!into) return false;
+		const order = all(into);
+		const ancestors = new Set(rowsAbove(order, order.findIndex(row => row.id === id)).map(row => row.id));
+		setFocusId(null);
+		if (into !== view) setView(into);
+		if ([...folded].some(fold => ancestors.has(fold))) setFolded(new Set([...folded].filter(fold => !ancestors.has(fold))));
+		select(id);
+		return true;
+	};
+
+	const clearReminder = (item: Reminded) => {
+		const reminder = {kind: 'none'} as const;
+		return item.kind === 'task' ? client.editTask(item.id, {reminder}) : item.kind === 'thread' ? client.edit(item.id, {reminder}) : client.editProject(item.id, {reminder});
+	};
+
+	// A Thread or a project is selected in the tree, and a Task by the Thread,
+	// project or area it is in, since Home shows no Tasks of its own. Opening a
+	// due Reminder uses it up, as in the web app.
+	const openReminded = (item: Reminded) => {
+		setMode({kind: 'browse'});
+		const found = reveal(item.place ?? item.id);
+		if (item.reminder.kind === 'due') void act(() => clearReminder(item));
+		if (!found) setMessage(`${item.title} is not in a Thread, project or area, so open it in the web app`);
+	};
+
 	useInput((input, key) => {
+		if (mode.kind === 'reminders') {
+			const picked = reminded[mode.at];
+			if (key.escape) setMode({kind: 'browse'});
+			else if (input === 'j' || key.downArrow) setMode({kind: 'reminders', at: Math.min(reminded.length - 1, mode.at + 1)});
+			else if (input === 'k' || key.upArrow) setMode({kind: 'reminders', at: Math.max(0, mode.at - 1)});
+			else if (key.return && picked) openReminded(picked);
+			else if (input === 'c' && picked?.reminder.kind === 'due') void act(() => clearReminder(picked));
+			return;
+		}
 		if (mode.kind !== 'browse') {
 			if (key.escape) {
 				cancel();
@@ -339,6 +383,7 @@ export function Home(deps: HomeDeps) {
 		else if (input === 'Z') toggleAllFolds();
 		else if (input === 'f' && thread) toggleFocus(thread);
 		else if (input === '/') setMode({kind: 'search', query: ''});
+		else if (input === 'b') setMode({kind: 'reminders', at: 0});
 		else if (input === 'n') goToMatch(1);
 		else if (input === 'N') goToMatch(-1);
 		else if (input === '.') changeView('bring_in');
@@ -397,7 +442,9 @@ export function Home(deps: HomeDeps) {
 			<Box marginTop={1} flexDirection="column" alignItems="center">
 				<Logo />
 				<Box marginTop={1}>
-					<Text color={colours.faint}>Home  ·  </Text>
+					<Text color={colours.faint}>Home</Text>
+					{reminded.some(item => item.reminder.kind === 'due') ? <Text color={colours.accent}> ●</Text> : null}
+					<Text color={colours.faint}>  ·  </Text>
 					<Text color={view === 'active' ? colours.faint : colours.accent}>{viewName[view]}</Text>
 					{focused ? <Text color={colours.accent}>{`  ·  Focused on ${focused.title}`}</Text> : null}
 				</Box>
@@ -418,7 +465,9 @@ export function Home(deps: HomeDeps) {
 				</Box>
 				<Box flexDirection="column" width={detailsWidth} alignSelf="flex-start" paddingLeft={3}
 					borderStyle="single" borderTop={false} borderBottom={false} borderRight={false} borderColor={colours.line}>
-					{mode.kind === 'new' ? (
+					{mode.kind === 'reminders' ? (
+						<ReminderList items={reminded} at={mode.at} today={today} />
+					) : mode.kind === 'new' ? (
 						<Text color={colours.faint}>{newPlaceName(mode.place, rows)}</Text>
 					) : mode.kind === 'directory' ? (
 						<Box flexDirection="column">
@@ -509,6 +558,51 @@ function Row({row, view, today, prefix, selected, highlight, editing}: {
 					<Text color={tag.colour}>{tag.text}</Text>
 				</Box>
 			))}
+		</Box>
+	);
+}
+
+// Anything with a Reminder: a Task, a Thread or a project. A Task's place is
+// the Thread, project or area it is in, which Home selects to open it.
+type Reminded = {kind: 'task' | 'thread' | 'project'; id: string; title: string; reminder: Reminder; place?: string};
+
+// The open items with a Reminder, the due ones first and then those to
+// come, each in the order of their moments, as the web app's bell lists them.
+function remindedOf(tasks: Task[], threads: Thread[], projects: Project[]): Reminded[] {
+	const items: Reminded[] = [
+		...tasks.map(task => ({kind: 'task' as const, id: task.id, title: task.title, reminder: task.reminder, place: task.threadId ?? (task.belongs.kind === 'none' ? undefined : task.belongs.id)})),
+		...threads.filter(thread => thread.ended === 'not_ended').map(thread => ({kind: 'thread' as const, id: thread.id, title: thread.title, reminder: thread.reminder})),
+		...projects.filter(project => project.ended === 'not_ended').map(project => ({kind: 'project' as const, id: project.id, title: project.title, reminder: project.reminder})),
+	];
+	const moment = (item: Reminded) => (item.reminder.kind === 'none' ? '' : item.reminder.at);
+	const of = (kind: 'due' | 'set') => items.filter(item => item.reminder.kind === kind).sort((a, b) => moment(a).localeCompare(moment(b)));
+	return [...of('due'), ...of('set')];
+}
+
+// The Reminders in the details column: Due, then Coming up.
+function ReminderList({items, at, today}: {items: Reminded[]; at: number; today: string}) {
+	const line = (item: Reminded, i: number) => (
+		<Box key={item.id} flexDirection="column" marginBottom={1}>
+			<Text color={colours.text} bold={i === at} wrap="truncate">
+				<Text color={colours.accent}>{i === at ? '› ' : '  '}</Text>
+				{item.title}
+			</Text>
+			<Text color={colours.faint}>{`  ${item.reminder.kind === 'none' ? '' : reminderName(item.reminder.at, today)}`}</Text>
+		</Box>
+	);
+	const due = items.filter(item => item.reminder.kind === 'due').length;
+	return (
+		<Box flexDirection="column">
+			<Text color={colours.faint}>Due</Text>
+			<Box marginTop={1} flexDirection="column">
+				{due === 0 ? <Text color={colours.dim}>  Nothing is due.</Text> : items.slice(0, due).map(line)}
+			</Box>
+			{items.length > due && (
+				<>
+					<Box marginTop={1}><Text color={colours.faint}>Coming up</Text></Box>
+					<Box marginTop={1} flexDirection="column">{items.slice(due).map((item, i) => line(item, due + i))}</Box>
+				</>
+			)}
 		</Box>
 	);
 }
@@ -676,7 +770,9 @@ export function ago(then: Date, now: Date): string {
 function hints(mode: Mode, view: View): string {
 	switch (mode.kind) {
 		case 'browse':
-			return `j k move · [ ] on me · e on me/waiting · ${view === 'bring_in' ? 's bring in or park' : 's park'} · x done · X dropped · . bring in · , ended · a child · A top level · J K reorder · z Z fold · f focus · / search · ⏎ go in · q quit`;
+			return `j k move · [ ] on me · e on me/waiting · ${view === 'bring_in' ? 's bring in or park' : 's park'} · x done · X dropped · . bring in · , ended · a child · A top level · J K reorder · z Z fold · f focus · / search · b reminders · ⏎ go in · q quit`;
+		case 'reminders':
+			return 'j k move · ⏎ open · c clear · esc close';
 		case 'new':
 		case 'directory':
 			return '⏎ save · esc cancel';
