@@ -17,7 +17,9 @@ export class WebPush implements Notifier {
 	constructor(
 		private readonly storage: Storage,
 		private readonly keys: Extract<PushKeys, {kind: 'set'}>,
-		private readonly send: typeof fetch = fetch,
+		// Called through a function of its own, because Workers refuse fetch
+		// called as a method of anything but the global object.
+		private readonly send: typeof fetch = (url, init) => fetch(url, init),
 	) {}
 
 	// One device failing does not stop the rest. A push service answers 404
