@@ -23,6 +23,30 @@ async function device(name: string): Promise<PushDevice> {
 	return {endpoint: `https://push.example.com/${name}`, keys: {p256dh: publicKey, auth: base64url(crypto.getRandomValues(new Uint8Array(16)))}};
 }
 
+// Reads a web push message the way a browser does (RFC 8291): the header
+// gives the salt and the sender's one-off public key, and the key and nonce
+// come from both sides' keys and the device's secret.
+async function decrypt(body: Uint8Array, devicePrivate: CryptoKey, devicePublic: Uint8Array, auth: Uint8Array): Promise<string> {
+	const salt = body.slice(0, 16);
+	const idLength = body[20]!;
+	const senderPublic = body.slice(21, 21 + idLength);
+	const sender = await crypto.subtle.importKey('raw', senderPublic, {name: 'ECDH', namedCurve: 'P-256'}, false, []);
+	const shared = await crypto.subtle.deriveBits({name: 'ECDH', public: sender}, devicePrivate, 256);
+	const hkdf = async (secret: ArrayBuffer | Uint8Array, salt: Uint8Array, info: Uint8Array, bytes: number) =>
+		new Uint8Array(await crypto.subtle.deriveBits({name: 'HKDF', hash: 'SHA-256', salt, info}, await crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveBits']), bytes * 8));
+	const text = (words: string) => new TextEncoder().encode(words);
+	const ikm = await hkdf(shared, auth, new Uint8Array([...text('WebPush: info\0'), ...devicePublic, ...senderPublic]), 32);
+	const key = await hkdf(ikm, salt, text('Content-Encoding: aes128gcm\0'), 16);
+	const nonce = await hkdf(ikm, salt, text('Content-Encoding: nonce\0'), 12);
+	const aes = await crypto.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
+	const record = new Uint8Array(await crypto.subtle.decrypt({name: 'AES-GCM', iv: nonce}, aes, body.slice(21 + idLength)));
+	// The last record ends with a 2, then padding of zeros.
+	let end = record.length - 1;
+	while (record[end] === 0) end--;
+	expect(record[end]).toBe(2);
+	return new TextDecoder().decode(record.slice(0, end));
+}
+
 let storage: Storage;
 let keys: {kind: 'set'; publicKey: string; privateKey: string};
 
@@ -104,6 +128,20 @@ describe('web push', () => {
 			// Encrypted, so the title is nowhere in what the push service sees.
 			expect(Buffer.from(init.body as Uint8Array).includes('Call the dentist')).toBe(false);
 		}
+	});
+
+	it("can be read back by the device it was for, as the item and its title", async () => {
+		// The device's own key pair and secret, as a browser keeps them.
+		const pair = await crypto.subtle.generateKey({name: 'ECDH', namedCurve: 'P-256'}, true, ['deriveBits']);
+		const devicePublic = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
+		const auth = crypto.getRandomValues(new Uint8Array(16));
+		await storage.addPushDevice({endpoint: 'https://push.example.com/phone', keys: {p256dh: base64url(devicePublic), auth: base64url(auth)}});
+		let body = new Uint8Array();
+		await new WebPush(storage, keys, async (_, init) => {
+			body = new Uint8Array(init!.body as Uint8Array);
+			return new Response(null, {status: 201});
+		}).notify(notice);
+		expect(JSON.parse(await decrypt(body, pair.privateKey, devicePublic, auth))).toEqual(notice);
 	});
 
 	it('forgets a device that took back its permission, and still sends to the rest', async () => {
