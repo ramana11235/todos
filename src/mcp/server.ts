@@ -51,6 +51,7 @@ const describe = (thread: Thread) => ({
 	when: thread.when,
 	ended: thread.ended,
 	deadline: thread.deadline,
+	reminder: reminderOut(thread.reminder),
 	summary: thread.summary,
 	nextStep: thread.nextStep,
 });
@@ -86,7 +87,7 @@ const deadline = z
 const reminder = z
 	.discriminatedUnion('kind', [z.object({kind: z.literal('none')}), z.object({kind: z.literal('set'), at: z.string().describe('A day and time on the user\'s clock, such as 2026-11-09T09:00.')})])
 	.optional()
-	.describe('When todos tells the user about it, only from a time the user gave you, or none to clear it. A day with no time is 09:00. It never moves the Task.');
+	.describe('When todos tells the user about it, only from a time the user gave you, or none to clear it. A day with no time is 09:00. It never moves anything.');
 const reminderIn = (value: z.infer<typeof reminder>) => {
 	if (value?.kind !== 'set') return value;
 	const at = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value.at) ? `${value.at}T09:00` : value.at);
@@ -135,6 +136,7 @@ const updateThreadInput = {
 	when: comesBack,
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('done or dropped only when the user tells you to; not_ended reopens it.'),
 	deadline,
+	reminder,
 	belongs_to: belongsTo.describe('The project or area it belongs to, only for a Thread at the top level; the Threads under it belong where it does.'),
 	directory: z.string().nullable().optional().describe('Where its Session works. null to use its parent\'s.'),
 };
@@ -211,6 +213,7 @@ const updateProjectInput = {
 	area: z.string().nullable().optional().describe('The id of the area it is in, or null for none.'),
 	when: comesBack.describe('Active, someday for not now, or on_day to bring it back into Active on that day. It moves only the project, never the Threads and Tasks in it. Only when the user tells you to.'),
 	deadline,
+	reminder,
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('done or dropped only when the user tells you to; not_ended reopens it. Nothing inside it changes.'),
 	position: z.number().int().min(0).optional().describe('Where among the projects of its area, or of those in no area, as find_projects lists them, 0 for first.'),
 };
@@ -401,7 +404,7 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			const byPosition = (a: {position: number}, b: {position: number}) => a.position - b.position;
 			return text({
 				areas: areas.filter(matches).sort(byPosition).map(({id, title, notes, ended}) => ({id, title, notes, ended})),
-				projects: projects.filter(matches).sort(byPosition).map(({id, title, notes, area, when, deadline, ended}) => ({id, title, notes, area, when, deadline, ended})),
+				projects: projects.filter(matches).sort(byPosition).map(({id, title, notes, area, when, deadline, reminder, ended}) => ({id, title, notes, area, when, deadline, reminder: reminderOut(reminder), ended})),
 			});
 		},
 	);
@@ -428,7 +431,7 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			}
 			case 'update_thread': {
 				const {tool, thread = threadId, next_step, note_edits, whose_move, belongs_to, ...fields} = change;
-				const body = {...fields, whoseMove: whose_move, nextStep: next_step, noteEdits: note_edits, belongs: belongs_to};
+				const body = {...fields, whoseMove: whose_move, nextStep: next_step, noteEdits: note_edits, belongs: belongs_to, reminder: reminderIn(change.reminder)};
 				return thread === threadId
 					? {method: 'POST', path: `/api/threads/${thread}/session-update`, body}
 					: {method: 'PATCH', path: `/api/threads/${thread}`, body};
@@ -459,7 +462,7 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 			}
 			case 'update_project': {
 				const {tool, project, area, position, ...fields} = change;
-				return {method: 'PATCH', path: `/api/projects/${project}`, body: {...fields, area: inArea(area), index: position}};
+				return {method: 'PATCH', path: `/api/projects/${project}`, body: {...fields, area: inArea(area), index: position, reminder: reminderIn(change.reminder)}};
 			}
 		}
 	};

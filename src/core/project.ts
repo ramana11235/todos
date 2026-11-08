@@ -1,6 +1,7 @@
 // Projects and areas, and the pure rules about what belongs to them. They
 // stand beside Threads rather than being kinds of Thread (docs/adr/0006).
 
+import type {Reminder} from './reminder.js';
 import type {Task} from './task.js';
 import {treeRows, type Deadline, type Ended, type Thread, type TreeRow, type When} from './thread.js';
 
@@ -29,6 +30,8 @@ export type Project = {
 	// the Threads and Tasks in it.
 	when: When;
 	deadline: Deadline;
+	// When todos tells me about it. It never changes its When.
+	reminder: Reminder;
 	ended: Ended;
 	// Where it sits among the projects in the sidebar, the lowest first.
 	position: number;

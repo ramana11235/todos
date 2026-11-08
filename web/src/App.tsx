@@ -49,7 +49,7 @@ import {dayOf, groupedByThread, listNames, listOf, lists, whenAfter, type List, 
 import type {TaskEdit} from '../../src/core/tasks';
 import type {MyEdit} from '../../src/core/threads';
 import {isActive, shownMove, type Deadline, type Thread} from '../../src/core/thread';
-import {Bell} from './Reminders';
+import {Bell, type Reminded} from './Reminders';
 import {SelectionBar, TaskMenu, type Actions} from './Actions';
 import {Capture} from './Capture';
 import {NewTask, type Draft} from './NewTask';
@@ -960,13 +960,34 @@ export function App() {
 	};
 
 	// A page takes the place of a list, and going back to a list closes it.
-	// Opening a Task from the bell uses up its Reminder if it was due.
-	const openFromBell = (task: Task) => {
-		if (task.reminder.kind === 'due') edit([task.id], {reminder: {kind: 'none'}});
+	// Everything with a Reminder that is still open, for the bell.
+	const reminded: Reminded[] = [
+		...tasks.map(t => ({kind: 'task' as const, id: t.id, title: t.title, reminder: t.reminder})),
+		...threads.filter(t => t.ended === 'not_ended').map(t => ({kind: 'thread' as const, id: t.id, title: t.title, reminder: t.reminder})),
+		...projects.filter(p => p.ended === 'not_ended').map(p => ({kind: 'project' as const, id: p.id, title: p.title, reminder: p.reminder})),
+	].filter(one => one.reminder.kind !== 'none');
+	const clearReminder = (item: Reminded) => {
+		const reminder = {kind: 'none'} as const;
+		if (item.kind === 'task') edit([item.id], {reminder});
+		else if (item.kind === 'thread') editThread(item.id, {reminder});
+		else editProject(item.id, {reminder});
+	};
+	// Opening an item from the bell uses up its Reminder if it was due.
+	const openFromBell = (item: Reminded) => {
+		if (item.reminder.kind === 'due') clearReminder(item);
+		if (item.kind === 'project') return openPage({kind: 'project', id: item.id});
+		if (item.kind === 'thread') {
+			setView('threads');
+			setThreadId(item.id);
+			setOpened(true);
+			return;
+		}
+		const task = tasks.find(t => t.id === item.id);
+		if (!task) return;
 		setView(listOf(task, now));
 		setOpenId(task.id);
 	};
-	const bell = <Bell tasks={tasks} onOpen={openFromBell} onClear={task => edit([task.id], {reminder: {kind: 'none'}})} />;
+	const bell = <Bell items={reminded} onOpen={openFromBell} onClear={clearReminder} />;
 
 	const openPage = (page: Page) => {
 		setView(view === 'threads' || showsEnded(view) ? 'anytime' : view);

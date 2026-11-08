@@ -1,4 +1,5 @@
 import type {Area, Belongs, InArea, Project} from '../core/project.js';
+import type {Reminder} from '../core/reminder.js';
 import type {Place, Task, TaskWhen} from '../core/task.js';
 import type {Settings} from '../core/settings.js';
 import type {Page} from '../core/thoughts.js';
@@ -31,14 +32,15 @@ export abstract class SqlStorage implements Storage {
 
 	async saveThread(thread: Thread): Promise<void> {
 		await this.db.run(
-			`INSERT INTO threads (id, title, summary, next_step, notes, whose_move, when_kind, when_day, ended, deadline,
+			`INSERT INTO threads (id, title, summary, next_step, notes, whose_move, when_kind, when_day, ended, deadline, reminder_kind, reminder_at,
 					parent_id, belongs_kind, belongs_id, position, directory, claude_session_id, session_pane, session_signal,
 					my_edit_at, session_seen_at, summary_updated_at, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title, summary = excluded.summary, next_step = excluded.next_step,
 					notes = excluded.notes, whose_move = excluded.whose_move, when_kind = excluded.when_kind,
 					when_day = excluded.when_day, ended = excluded.ended, deadline = excluded.deadline,
+					reminder_kind = excluded.reminder_kind, reminder_at = excluded.reminder_at,
 					parent_id = excluded.parent_id, belongs_kind = excluded.belongs_kind, belongs_id = excluded.belongs_id,
 					position = excluded.position, directory = excluded.directory,
 					claude_session_id = excluded.claude_session_id, session_pane = excluded.session_pane,
@@ -50,7 +52,7 @@ export abstract class SqlStorage implements Storage {
 			thread.summary,
 			thread.nextStep,
 			thread.notes,
-			...Object.values(columnsOf({whoseMove: thread.whoseMove, when: thread.when, ended: thread.ended, deadline: thread.deadline}, threadColumns)),
+			...Object.values(columnsOf({whoseMove: thread.whoseMove, when: thread.when, ended: thread.ended, deadline: thread.deadline, reminder: thread.reminder}, threadColumns)),
 			thread.parentId,
 			...belongsColumns(thread.belongs),
 			thread.position,
@@ -178,7 +180,7 @@ export abstract class SqlStorage implements Storage {
 	}
 
 	async listProjects(): Promise<Project[]> {
-		const rows = await this.db.all<{id: string; title: string; notes: string; area_id: string | null; when_kind: string; when_day: string | null; deadline: string | null; ended: string; position: number; created_at: string}>('SELECT * FROM projects');
+		const rows = await this.db.all<{id: string; title: string; notes: string; area_id: string | null; when_kind: string; when_day: string | null; deadline: string | null; reminder_kind: string; reminder_at: string | null; ended: string; position: number; created_at: string}>('SELECT * FROM projects');
 		return rows.map(row => ({
 			id: row.id,
 			title: row.title,
@@ -186,6 +188,7 @@ export abstract class SqlStorage implements Storage {
 			area: (row.area_id ? {kind: 'in', id: row.area_id} : {kind: 'none'}) as InArea,
 			when: row.when_kind === 'on_day' ? {kind: 'on_day', day: row.when_day!} : ({kind: row.when_kind} as When),
 			deadline: deadlineOf(row.deadline),
+			reminder: reminderOf(row.reminder_kind, row.reminder_at),
 			ended: row.ended as Ended,
 			position: row.position,
 			createdAt: row.created_at,
@@ -194,9 +197,10 @@ export abstract class SqlStorage implements Storage {
 
 	async saveProject(project: Project): Promise<void> {
 		await this.db.run(
-			`INSERT INTO projects (id, title, notes, area_id, when_kind, when_day, deadline, ended, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO projects (id, title, notes, area_id, when_kind, when_day, deadline, reminder_kind, reminder_at, ended, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(id) DO UPDATE SET title = excluded.title, notes = excluded.notes, area_id = excluded.area_id,
-					when_kind = excluded.when_kind, when_day = excluded.when_day, deadline = excluded.deadline, ended = excluded.ended, position = excluded.position`,
+					when_kind = excluded.when_kind, when_day = excluded.when_day, deadline = excluded.deadline,
+					reminder_kind = excluded.reminder_kind, reminder_at = excluded.reminder_at, ended = excluded.ended, position = excluded.position`,
 			project.id,
 			project.title,
 			project.notes,
@@ -204,6 +208,8 @@ export abstract class SqlStorage implements Storage {
 			project.when.kind,
 			project.when.kind === 'on_day' ? project.when.day : null,
 			dayOfDeadline(project.deadline),
+			project.reminder.kind,
+			project.reminder.kind === 'none' ? null : project.reminder.at,
 			project.ended,
 			project.position,
 			project.createdAt,
@@ -265,7 +271,7 @@ const taskColumns: Record<Exclude<keyof Task, 'when' | 'deadline' | 'reminder' |
 
 const areaColumns: Record<keyof Area, string> = {id: 'id', title: 'title', notes: 'notes', ended: 'ended', position: 'position', createdAt: 'created_at'};
 
-const projectColumns: Record<Exclude<keyof Project, 'area' | 'when' | 'deadline'>, string> = {
+const projectColumns: Record<Exclude<keyof Project, 'area' | 'when' | 'deadline' | 'reminder'>, string> = {
 	id: 'id',
 	title: 'title',
 	notes: 'notes',
@@ -279,10 +285,13 @@ const belongsColumnsOf = (belongs: Belongs) => ({belongs_kind: belongs.kind, bel
 const belongsColumns = (belongs: Belongs) => Object.values(belongsColumnsOf(belongs));
 const belongsOf = (kind: string, id: string | null): Belongs => (kind === 'none' ? {kind: 'none'} : ({kind, id: id!} as Belongs));
 
+// A Reminder sits in two columns, the moment empty for none.
+const reminderOf = (kind: string, at: string | null): Reminder => (kind === 'none' ? {kind: 'none'} : {kind: kind as 'set' | 'due', at: at!});
+
 const dayOfDeadline = (deadline: Deadline) => (deadline.kind === 'by_day' ? deadline.day : null);
 const deadlineOf = (day: string | null): Deadline => (day ? {kind: 'by_day', day} : {kind: 'none'});
 
-const threadColumns: Record<Exclude<keyof Thread, 'when' | 'deadline' | 'belongs'>, string> = {
+const threadColumns: Record<Exclude<keyof Thread, 'when' | 'deadline' | 'reminder' | 'belongs'>, string> = {
 	id: 'id',
 	title: 'title',
 	summary: 'summary',
@@ -313,6 +322,8 @@ type Row = {
 	when_day: string | null;
 	ended: string;
 	deadline: string | null;
+	reminder_kind: string;
+	reminder_at: string | null;
 	parent_id: string | null;
 	belongs_kind: string;
 	belongs_id: string | null;
@@ -338,6 +349,7 @@ function fromRow(row: Row): Thread {
 		when: row.when_kind === 'on_day' ? {kind: 'on_day', day: row.when_day!} : ({kind: row.when_kind} as When),
 		ended: row.ended as Ended,
 		deadline: deadlineOf(row.deadline),
+		reminder: reminderOf(row.reminder_kind, row.reminder_at),
 		parentId: row.parent_id,
 		belongs: belongsOf(row.belongs_kind, row.belongs_id),
 		position: row.position,
@@ -380,7 +392,7 @@ function taskFromRow(row: TaskRow): Task {
 		belongs: belongsOf(row.belongs_kind, row.belongs_id),
 		position: row.position,
 		deadline: deadlineOf(row.deadline),
-		reminder: row.reminder_kind === 'none' ? {kind: 'none'} : {kind: row.reminder_kind as 'set' | 'due', at: row.reminder_at!},
+		reminder: reminderOf(row.reminder_kind, row.reminder_at),
 		notes: row.notes,
 		checklist: JSON.parse(row.checklist),
 		ended: row.ended as Ended,

@@ -4,7 +4,7 @@ import {Button} from '@/components/ui/button';
 import {Calendar} from '@/components/ui/calendar';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import type {Reminder} from '../../src/core/reminder';
-import {dayOf, type Task} from '../../src/core/task';
+import {dayOf} from '../../src/core/task';
 import {dayName, today} from './days';
 import {ease, ms} from './motion';
 import {begin} from './settled';
@@ -73,14 +73,17 @@ export function RemindButton({reminder, onChange}: {reminder: Reminder; onChange
 	);
 }
 
+// Anything with a Reminder: a Task, a Thread or a project.
+export type Reminded = {kind: 'task' | 'thread' | 'project'; id: string; title: string; reminder: Reminder};
+
 // The bell at the top right. A quiet dot fades in once a Reminder is due,
 // with no number. Its list shows the due Reminders, then those still to
-// come, each opening its Task; a due one can be cleared, and one that leaves
+// come, each opening its item; a due one can be cleared, and one that leaves
 // the list fades out of it first.
-export function Bell({tasks, onOpen, onClear}: {tasks: Task[]; onOpen: (task: Task) => void; onClear: (task: Task) => void}) {
+export function Bell({items, onOpen, onClear}: {items: Reminded[]; onOpen: (item: Reminded) => void; onClear: (item: Reminded) => void}) {
 	const [open, setOpen] = useState(false);
 	const byMoment = (kind: 'due' | 'set') =>
-		tasks.filter(t => t.reminder.kind === kind).sort((a, b) => momentOf(a).localeCompare(momentOf(b)));
+		items.filter(one => one.reminder.kind === kind).sort((a, b) => momentOf(a).localeCompare(momentOf(b)));
 	const due = byMoment('due');
 	const coming = byMoment('set');
 	const dot = useRef<HTMLSpanElement>(null);
@@ -99,7 +102,7 @@ export function Bell({tasks, onOpen, onClear}: {tasks: Task[]; onOpen: (task: Ta
 		if (!row) return finish();
 		void row.animate([{opacity: 1}, {opacity: 0}], {duration: ms, easing: ease, fill: 'forwards'}).finished.then(finish, finish);
 	};
-	const row = (task: Task) => (
+	const row = (task: Reminded) => (
 		<button
 			className="flex min-w-0 flex-1 flex-col items-start px-2 py-1.5 text-left"
 			onClick={e => {
@@ -125,7 +128,7 @@ export function Bell({tasks, onOpen, onClear}: {tasks: Task[]; onOpen: (task: Ta
 				<p className="px-2 pt-1 pb-1 text-xs font-medium text-muted-foreground">Due</p>
 				{due.length === 0 && <p className="px-2 pb-2 text-sm text-muted-foreground">Nothing is due.</p>}
 				{due.map(task => (
-					<div key={task.id} data-reminder={task.id} className="flex items-center gap-1 rounded-md hover:bg-muted/50">
+					<div key={task.id} data-reminder={task.id} data-kind={task.kind} className="flex items-center gap-1 rounded-md hover:bg-muted/50">
 						{row(task)}
 						<Button variant="ghost" size="icon-sm" aria-label="Clear" onClick={e => leave(e.currentTarget.parentElement, () => onClear(task))}>
 							<XIcon />
@@ -147,4 +150,4 @@ export function Bell({tasks, onOpen, onClear}: {tasks: Task[]; onOpen: (task: Ta
 	);
 }
 
-const momentOf = (task: Task) => (task.reminder.kind === 'none' ? '' : task.reminder.at);
+const momentOf = (item: Reminded) => (item.reminder.kind === 'none' ? '' : item.reminder.at);

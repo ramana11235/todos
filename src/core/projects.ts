@@ -5,6 +5,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import type {Area, Belongs, InArea, Project} from './project.js';
+import {clockThatNeverGoesOff, reminderAfter, wake, type Reminder, type ReminderClock} from './reminder.js';
 import type {Deadline, Ended, When} from './thread.js';
 import {changedFields, requireDeadline, requireEnded, requireWhen, ThreadError} from './threads.js';
 
@@ -16,12 +17,15 @@ export type NewProject = {title: string; notes?: string; area?: InArea; when?: W
 
 // index is its place among the projects of its area, or of those in no area,
 // 0 for first, which renumbers them.
-export type ProjectEdit = {title?: string; notes?: string; area?: InArea; when?: When; deadline?: Deadline; ended?: Ended; position?: number; index?: number};
+// A Reminder is {kind: "set", at} or {kind: "none"}; opening a due one's
+// project from the bell clears it.
+export type ProjectEdit = {title?: string; notes?: string; area?: InArea; when?: When; deadline?: Deadline; reminder?: Reminder; ended?: Ended; position?: number; index?: number};
 
 export class Projects {
 	constructor(
 		private readonly storage: Storage,
 		private readonly now: () => Date = () => new Date(),
+		private readonly clock: ReminderClock = clockThatNeverGoesOff,
 	) {}
 
 	listAreas(): Promise<Area[]> {
@@ -76,6 +80,7 @@ export class Projects {
 			area: await this.requireInArea(area),
 			when: requireWhen(when),
 			deadline: requireDeadline(deadline),
+			reminder: {kind: 'none'},
 			ended: 'not_ended',
 			position: nextPosition(all),
 			createdAt: this.stamp(),
@@ -98,7 +103,9 @@ export class Projects {
 			const inSameArea = (await this.storage.listProjects()).filter(other => (other.area.kind === 'in' ? other.area.id : null) === (next.area.kind === 'in' ? next.area.id : null));
 			next.position = await placeAmong(inSameArea, next, edit.index, (other, position) => this.storage.updateProject(other, {position}));
 		}
+		next.reminder = reminderAfter(project.reminder, edit.reminder, next.ended, this.now());
 		await this.storage.updateProject(id, changedFields(project, next));
+		await wake(this.clock, {kind: 'project', id}, project.reminder, next.reminder);
 		return next;
 	}
 

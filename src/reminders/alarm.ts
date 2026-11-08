@@ -4,7 +4,7 @@
 // schedules exactly itself and no other is touched.
 
 import type {ReminderClock, ReminderItem} from '../core/reminder.js';
-import {Tasks} from '../core/tasks.js';
+import {Reminders} from '../core/reminders.js';
 import {D1Storage, type D1Database} from '../storage/d1.js';
 
 // The parts of Cloudflare's Durable Object bindings used here, so nothing
@@ -64,7 +64,7 @@ export class ReminderAlarm {
 	// An error here makes Cloudflare try again, a few times, with a growing wait.
 	async alarm(): Promise<void> {
 		const item = await this.state.storage.get<ReminderItem>('item');
-		if (item) await new Tasks(new D1Storage(this.env.DB)).reminderCame(item.id);
+		if (item) await new Reminders(new D1Storage(this.env.DB)).came(item);
 		await this.state.storage.deleteAll();
 	}
 }

@@ -1,6 +1,7 @@
 // A Thread and the pure rules about it. Nothing here touches storage,
 // the terminal or the network, so every client can use these rules.
 
+import type {Reminder} from './reminder.js';
 import type {Belongs} from './project.js';
 
 // Who acts next: me, or someone or something else (CONTEXT.md). Working is
@@ -33,6 +34,8 @@ export type Thread = {
 	when: When;
 	ended: Ended;
 	deadline: Deadline;
+	// When todos tells me about it. It never changes its When.
+	reminder: Reminder;
 	parentId: string | null;
 	// Set only on a Thread at the top of its tree; the Threads under it
 	// belong where it does, and keep none of their own.

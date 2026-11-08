@@ -1,6 +1,7 @@
 // A Reminder and the port that wakes todos when one comes. Nothing here
 // touches storage, the network or a timer.
 
+import type {Ended} from './thread.js';
 import {ThreadError} from './threads.js';
 
 // A moment at which todos tells me about an item. `at` is an instant such as
@@ -10,12 +11,13 @@ import {ThreadError} from './threads.js';
 // its item from the bell, clear it, or the item ends, which uses it up.
 export type Reminder = {kind: 'none'} | {kind: 'set'; at: string} | {kind: 'due'; at: string};
 
-// What a Reminder can belong to. Threads and projects get Reminders later.
-export type ReminderItem = {kind: 'task'; id: string};
+// What a Reminder can belong to: anything with a When. An area is never
+// finished and a Checklist step is part of its Task, so neither has one.
+export type ReminderItem = {kind: 'task' | 'thread' | 'project'; id: string};
 
 // Wakes todos when an item's Reminder comes. Each item has at most one, so
 // `set` replaces any the item had, and `clear` removes it. When one comes,
-// the adapter calls `reminderCame` with the item. The hosted Instance uses a
+// the adapter calls Reminders.came with the item. The hosted Instance uses a
 // Durable Object per item and a local Instance a timer per item.
 export interface ReminderClock {
 	set(item: ReminderItem, at: string): Promise<void>;
@@ -43,3 +45,18 @@ export function requireReminder(value: unknown): Reminder {
 // already passed is due at once, so nothing waits on a clock for it.
 export const reminderAt = (reminder: Reminder, now: Date): Reminder =>
 	reminder.kind === 'set' && Date.parse(reminder.at) <= now.getTime() ? {kind: 'due', at: reminder.at} : reminder;
+
+// The Reminder an item has after an edit at `now`: the one given, if any,
+// and none once the item has ended, since ending it uses its Reminder up.
+export function reminderAfter(before: Reminder, given: unknown, ended: Ended, now: Date): Reminder {
+	if (ended !== 'not_ended') return {kind: 'none'};
+	return given === undefined ? before : reminderAt(requireReminder(given), now);
+}
+
+// Sets the clock for an item's Reminder while it waits, and clears it
+// otherwise, but only when the Reminder changed, so other edits cost nothing.
+export async function wake(clock: ReminderClock, item: ReminderItem, before: Reminder, after: Reminder): Promise<void> {
+	if (JSON.stringify(before) === JSON.stringify(after)) return;
+	if (after.kind === 'set') await clock.set(item, after.at);
+	else await clock.clear(item);
+}

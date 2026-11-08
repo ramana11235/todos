@@ -21,6 +21,7 @@ import type {MyEdit} from '../../src/core/threads';
 import {columnsFor} from './columns';
 import {Deadline} from './Deadline';
 import {NewTask, type Draft} from './NewTask';
+import {RemindButton} from './Reminders';
 import {StateDot} from './StateDot';
 import {Formatted} from './Formatted';
 import {ease, fly, ms, nothingHandled, pinned, stepBack, useMotion, type Handled} from './motion';
@@ -261,6 +262,7 @@ function Details({
 							</PopoverContent>
 						</Popover>
 						<WhenButton when={thread.when} onWhen={onWhen} />
+						<RemindButton reminder={thread.reminder} onChange={reminder => onEdit({reminder})} />
 						<Popover open={open === 'deadline'} onOpenChange={opener('deadline')}>
 							<PopoverTrigger render={<Button variant="ghost" size="sm" />}>
 								{thread.deadline.kind === 'by_day' ? <Deadline day={thread.deadline.day} /> : 'Deadline'}

@@ -257,7 +257,7 @@ describe('the MCP server', () => {
 		const run = (await call('create_project', {title: 'Run a 10k', area: health})).body.id;
 		expect((await call('find_projects', {query: '10k'})).body).toEqual({
 			areas: [],
-			projects: [{id: run, title: 'Run a 10k', notes: '', area: {kind: 'in', id: health}, when: {kind: 'active'}, deadline: {kind: 'none'}, ended: 'not_ended'}],
+			projects: [{id: run, title: 'Run a 10k', notes: '', area: {kind: 'in', id: health}, when: {kind: 'active'}, deadline: {kind: 'none'}, reminder: {kind: 'none'}, ended: 'not_ended'}],
 		});
 		const launch = (await call('find_threads', {query: 'Launch'})).body[0].id;
 		await call('update_thread', {thread: launch, belongs_to: {kind: 'project', id: run}});
@@ -323,6 +323,16 @@ describe('the MCP server', () => {
 		await call('batch', {changes: [{tool: 'edit_task', task: id, reminder: {kind: 'none'}}]});
 		expect((await client.task(id)).reminder).toEqual({kind: 'none'});
 		expect((await call('edit_task', {task: id, reminder: {kind: 'set', at: 'soon'}})).isError).toBe(true);
+	});
+
+	it('sets a Reminder on its own Thread, another Thread and a project, and reads each back on the user\'s clock', async () => {
+		await call('update_thread', {reminder: {kind: 'set', at: '2099-01-01T18:30'}});
+		expect((await client.thread(mine)).reminder).toEqual({kind: 'set', at: new Date('2099-01-01T18:30').toISOString()});
+		await call('update_thread', {thread: sibling, reminder: {kind: 'set', at: '2099-01-02'}});
+		expect((await call('get_thread', {thread: sibling})).body.reminder).toEqual({kind: 'set', at: '2099-01-02T09:00'});
+		const project = (await call('create_project', {title: 'Move flat'})).body.id;
+		await call('update_project', {project, reminder: {kind: 'set', at: '2099-01-03T08:15'}});
+		expect((await call('find_projects')).body.projects[0].reminder).toEqual({kind: 'set', at: '2099-01-03T08:15'});
 	});
 
 	it('places Tasks and new Threads in their list, alone or in a batch, and lists Tasks in my order', async () => {

@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import {sameBelongs, threadBelongs, type Belongs} from './project.js';
 import {requireBelongs} from './projects.js';
+import {clockThatNeverGoesOff, reminderAfter, wake, type Reminder, type ReminderClock} from './reminder.js';
 import {isDay} from './task.js';
 import {
 	childrenOf,
@@ -40,6 +41,9 @@ export type MyEdit = {
 	when?: When;
 	ended?: Ended;
 	deadline?: Deadline;
+	// {kind: "set", at} or {kind: "none"}; opening a due Reminder's Thread
+	// from the bell clears it.
+	reminder?: Reminder;
 	// Only a Thread at the top of its tree takes this.
 	belongs?: Belongs;
 	directory?: string | null;
@@ -65,6 +69,7 @@ export class Threads {
 	constructor(
 		private readonly storage: Storage,
 		private readonly now: () => Date = () => new Date(),
+		private readonly clock: ReminderClock = clockThatNeverGoesOff,
 	) {}
 
 	list(): Promise<Thread[]> {
@@ -110,6 +115,7 @@ export class Threads {
 			when: {kind: 'active'},
 			ended: 'not_ended',
 			deadline: {kind: 'none'},
+			reminder: {kind: 'none'},
 			parentId,
 			belongs: {kind: 'none'},
 			position: after ? after.position + 1 : siblings.length === 0 ? 0 : Math.max(...siblings.map(s => s.position)) + 1,
@@ -145,8 +151,10 @@ export class Threads {
 		next.notes = changedNotes(thread.notes, edit);
 		if (edit.directory !== undefined) next.directory = edit.directory?.trim() || null;
 		Object.assign(next, facts(edit), await this.belonging(thread, edit));
+		next.reminder = reminderAfter(thread.reminder, edit.reminder, next.ended, this.now());
 		this.noteSummaryChange(thread, next);
 		await this.save(thread, next);
+		await wake(this.clock, {kind: 'thread', id}, thread.reminder, next.reminder);
 		return next;
 	}
 
@@ -224,8 +232,10 @@ export class Threads {
 		next.notes = changedNotes(thread.notes, update);
 		if (update.directory !== undefined) next.directory = update.directory?.trim() || null;
 		Object.assign(next, facts(update), await this.belonging(thread, update));
+		next.reminder = reminderAfter(thread.reminder, update.reminder, next.ended, this.now());
 		this.noteSummaryChange(thread, next);
 		await this.save(thread, next);
+		await wake(this.clock, {kind: 'thread', id}, thread.reminder, next.reminder);
 		return {updated: true, thread: next};
 	}
 

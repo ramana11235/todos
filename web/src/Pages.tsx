@@ -18,6 +18,7 @@ import {dayOf} from '../../src/core/task';
 import type {Deadline as DeadlineDay, Ended} from '../../src/core/thread';
 import {deadlineName} from '../../src/core/words';
 import {dayName, daysLeft, today} from './days';
+import {RemindButton} from './Reminders';
 import {Deadline, DeadlinePicker} from './Deadline';
 import {ease} from './motion';
 import {Field} from './Threads';
@@ -248,6 +249,7 @@ export function PageTop({page, areas, projects, onOpen, onEditProject, onEditAre
 								</div>
 							</PopoverContent>
 						</Popover>
+						<RemindButton reminder={project.reminder} onChange={reminder => onEditProject(project.id, {reminder})} />
 						<Popover open={open === 'deadline'} onOpenChange={isOpen => setOpen(isOpen ? 'deadline' : null)}>
 							<PopoverTrigger render={<Button variant="ghost" size={project.deadline.kind === 'by_day' ? 'sm' : 'icon-sm'} aria-label="Deadline" />}>
 								{project.deadline.kind === 'by_day' ? <Deadline day={project.deadline.day} /> : <FlagIcon />}

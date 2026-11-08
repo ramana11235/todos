@@ -71,6 +71,7 @@ const threadEditFields = {
 	when: {input: 'when'},
 	ended: {input: 'ended'},
 	deadline: {input: 'deadline'},
+	reminder: {input: 'reminder'},
 	belongs: {input: 'belongs_to'},
 	directory: {input: 'directory'},
 } satisfies Record<keyof MyEdit, Offered> & Record<keyof SessionUpdate, Offered>;
@@ -112,6 +113,7 @@ const newProjectFields = {
 const projectEditFields = {
 	...newProjectFields,
 	when: {input: 'when'},
+	reminder: {input: 'reminder'},
 	ended: {input: 'ended'},
 	position: {leftOut: 'The number the web app sets when I drag a project in the sidebar; a Session places one with position, sent as index'},
 	index: {input: 'position'},

@@ -4,7 +4,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Storage} from '../storage/storage.js';
 import type {Belongs} from './project.js';
-import {clockThatNeverGoesOff, reminderAt, requireReminder, type Reminder, type ReminderClock} from './reminder.js';
+import {clockThatNeverGoesOff, reminderAfter, reminderAt, requireReminder, wake, type Reminder, type ReminderClock} from './reminder.js';
 import {requireBelongs} from './projects.js';
 import {dayOf, isDay, listOf, places, whenAfter, type Place, type Step, type Task, type TaskWhen} from './task.js';
 import type {Deadline, Ended, Thread} from './thread.js';
@@ -110,7 +110,7 @@ export class Tasks {
 		task.when = whenAfter(task, {});
 		if (index !== undefined) task.position = await this.positionAt(task, index);
 		await this.storage.saveTask(task);
-		if (task.reminder.kind === 'set') await this.wake(task);
+		await wake(this.clock, {kind: 'task', id: task.id}, {kind: 'none'}, task.reminder);
 		return task;
 	}
 
@@ -125,9 +125,7 @@ export class Tasks {
 		}
 		if (edit.when !== undefined) next.when = requireWhen(edit.when);
 		if (edit.deadline !== undefined) next.deadline = requireDeadline(edit.deadline);
-		if (edit.reminder !== undefined) next.reminder = reminderAt(requireReminder(edit.reminder), this.now());
-		// An ended Task's Reminder is used up.
-		if (next.ended !== 'not_ended') next.reminder = {kind: 'none'};
+		next.reminder = reminderAfter(task.reminder, edit.reminder, next.ended, this.now());
 		if (edit.notes !== undefined) next.notes = String(edit.notes);
 		if (edit.checklist !== undefined) next.checklist = requireChecklist(edit.checklist);
 		if (edit.position !== undefined) {
@@ -149,38 +147,8 @@ export class Tasks {
 		next.when = whenAfter(next, {});
 		if (edit.index !== undefined) next.position = await this.positionAt(next, edit.index);
 		await this.storage.updateTask(id, changedFields(task, next));
-		if (JSON.stringify(task.reminder) !== JSON.stringify(next.reminder)) await this.wake(next);
+		await wake(this.clock, {kind: 'task', id}, task.reminder, next.reminder);
 		return next;
-	}
-
-	// Called by the clock when a Task's Reminder comes. Only one still set
-	// for a moment that has passed becomes due, so a clock that wakes for a
-	// Reminder since changed or cleared changes nothing.
-	async reminderCame(id: string): Promise<void> {
-		const task = await this.storage.getTask(id);
-		if (!task || task.reminder.kind !== 'set') return;
-		const reminder = reminderAt(task.reminder, this.now());
-		if (reminder.kind === 'due') await this.storage.updateTask(id, {reminder});
-	}
-
-	// Sets the clock for every Reminder still waiting, as a local Instance
-	// does when it starts, since its timers did not outlive the last run. One
-	// whose moment passed meanwhile becomes due at once.
-	async wakeAll(): Promise<void> {
-		for (const task of await this.list()) {
-			if (task.reminder.kind !== 'set') continue;
-			const reminder = reminderAt(task.reminder, this.now());
-			if (reminder.kind === 'due') await this.storage.updateTask(task.id, {reminder});
-			else await this.wake(task);
-		}
-	}
-
-	// Sets the clock for a Task's Reminder while it waits, and clears it
-	// otherwise.
-	private async wake(task: Task): Promise<void> {
-		const item = {kind: 'task' as const, id: task.id};
-		if (task.reminder.kind === 'set') await this.clock.set(item, task.reminder.at);
-		else await this.clock.clear(item);
 	}
 
 	// Turns a Task into a new Thread under `parentId`: the Thread takes its

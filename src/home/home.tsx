@@ -623,7 +623,7 @@ function draftRow(rows: HomeRow[], mode: Extract<Mode, {kind: 'new'}>): {at: num
 	const depth = under && from >= 0 ? rows[from]!.depth + 1 : 0;
 	const thread: Thread = {
 		id: '', title: mode.title, summary: '', nextStep: '', notes: '', whoseMove: 'on_me', when: {kind: 'active'}, ended: 'not_ended',
-		deadline: {kind: 'none'}, parentId: place.kind === 'child' ? place.parentId : null, belongs: place.kind === 'top' ? place.belongs : {kind: 'none'}, position: 0,
+		deadline: {kind: 'none'}, reminder: {kind: 'none'}, parentId: place.kind === 'child' ? place.parentId : null, belongs: place.kind === 'top' ? place.belongs : {kind: 'none'}, position: 0,
 		directory: null, claudeSessionId: null, sessionPane: null, sessionSignal: null,
 		myEditAt: null, sessionSeenAt: null, summaryUpdatedAt: null, createdAt: '',
 	};

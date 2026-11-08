@@ -24,7 +24,8 @@ export default {
 		// fetched once rather than on every request.
 		if (!handler) {
 			const storage = new D1Storage(env.DB);
-			const api = createHandler(new Threads(storage), new Tasks(storage, undefined, new DurableObjectClock(env.REMINDERS)), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage));
+			const clock = new DurableObjectClock(env.REMINDERS);
+			const api = createHandler(new Threads(storage, undefined, clock), new Tasks(storage, undefined, clock), new Thoughts(storage), new Projects(storage, undefined, clock), new InstanceSettings(storage));
 			handler = requireAccess(api, {team: env.ACCESS_TEAM, audience: env.ACCESS_AUD});
 		}
 		return handler(request);

@@ -1,5 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {ReminderClock, ReminderItem} from '../src/core/reminder.js';
+import {Projects} from '../src/core/projects.js';
+import {Reminders} from '../src/core/reminders.js';
 import {Tasks} from '../src/core/tasks.js';
 import {Threads} from '../src/core/threads.js';
 import {DurableObjectClock, ReminderAlarm} from '../src/reminders/alarm.js';
@@ -16,8 +18,11 @@ class TestClock implements ReminderClock {
 	time = new Date('2026-11-08T08:00:00Z');
 	came: (item: ReminderItem) => Promise<void> = async () => {};
 
+	readonly items = new Map<string, ReminderItem>();
+
 	async set(item: ReminderItem, at: string) {
 		this.set_.set(item.id, at);
+		this.items.set(item.id, item);
 	}
 
 	async clear(item: ReminderItem) {
@@ -29,7 +34,7 @@ class TestClock implements ReminderClock {
 		for (const [id, at] of [...this.set_]) {
 			if (Date.parse(at) > this.time.getTime()) continue;
 			this.set_.delete(id);
-			await this.came({kind: 'task', id});
+			await this.came(this.items.get(id)!);
 		}
 	}
 }
@@ -42,7 +47,7 @@ beforeEach(async () => {
 	storage = await makeStorage();
 	clock = new TestClock();
 	tasks = new Tasks(storage, () => clock.time, clock);
-	clock.came = item => tasks.reminderCame(item.id);
+	clock.came = item => new Reminders(storage, () => clock.time).came(item);
 });
 
 const nine = '2026-11-09T09:00:00.000Z';
@@ -83,7 +88,7 @@ describe("a Task's Reminder", () => {
 		const task = await tasks.add({title: 'Call the dentist', reminder: {kind: 'set', at: nine}});
 		await tasks.edit(task.id, {reminder: {kind: 'none'}});
 		clock.time = new Date('2026-11-09T10:00:00Z');
-		await tasks.reminderCame(task.id);
+		await new Reminders(storage, () => clock.time).came({kind: 'task', id: task.id});
 		expect((await tasks.get(task.id)).reminder).toEqual({kind: 'none'});
 	});
 
@@ -119,9 +124,50 @@ describe("a Task's Reminder", () => {
 		const missed = await tasks.add({title: 'Pay the bill', reminder: {kind: 'set', at: '2026-11-08T09:00:00.000Z'}});
 		const restarted = new TestClock();
 		restarted.time = new Date('2026-11-08T12:00:00Z');
-		await new Tasks(storage, () => restarted.time, restarted).wakeAll();
+		await new Reminders(storage, () => restarted.time).wakeAll(restarted);
 		expect(restarted.set_.get(waiting.id)).toBe(nine);
 		expect((await tasks.get(missed.id)).reminder.kind).toBe('due');
+	});
+});
+
+describe("a Thread's and a project's Reminder", () => {
+	it('is set, comes due and is used up when the Thread ends, without changing its When', async () => {
+		const threads = new Threads(storage, () => clock.time, clock);
+		const thread = await threads.create({title: 'Plan the garden', when: {kind: 'someday'}});
+		const edited = await threads.edit(thread.id, {reminder: {kind: 'set', at: nine}});
+		expect(edited.when).toEqual({kind: 'someday'});
+		await clock.moveTo('2026-11-09T09:00:00Z');
+		expect((await threads.get(thread.id)).reminder).toEqual({kind: 'due', at: nine});
+		expect((await threads.edit(thread.id, {ended: 'done'})).reminder).toEqual({kind: 'none'});
+	});
+
+	it('is set by a Session on its own Thread and cleared again', async () => {
+		const threads = new Threads(storage, () => clock.time, clock);
+		const thread = await threads.create({title: 'Plan the garden'});
+		await threads.sessionUpdate(thread.id, {reminder: {kind: 'set', at: nine}});
+		expect(clock.set_.get(thread.id)).toBe(nine);
+		await threads.sessionUpdate(thread.id, {reminder: {kind: 'none'}});
+		expect(clock.set_.has(thread.id)).toBe(false);
+	});
+
+	it('is set on a project, comes due and is used up when the project is dropped', async () => {
+		const projects = new Projects(storage, () => clock.time, clock);
+		const project = await projects.createProject({title: 'Move flat'});
+		await projects.editProject(project.id, {reminder: {kind: 'set', at: nine}});
+		await clock.moveTo('2026-11-09T09:00:00Z');
+		expect((await projects.listProjects())[0]!.reminder).toEqual({kind: 'due', at: nine});
+		expect((await projects.editProject(project.id, {ended: 'dropped'})).reminder).toEqual({kind: 'none'});
+	});
+
+	it('waiting when the API starts is set on the clock again, for every kind of item', async () => {
+		const thread = await new Threads(storage, () => clock.time, clock).create({title: 'Plan the garden'});
+		await new Threads(storage, () => clock.time, clock).edit(thread.id, {reminder: {kind: 'set', at: nine}});
+		const project = await new Projects(storage, () => clock.time, clock).createProject({title: 'Move flat'});
+		await new Projects(storage, () => clock.time, clock).editProject(project.id, {reminder: {kind: 'set', at: nine}});
+		const restarted = new TestClock();
+		await new Reminders(storage, () => restarted.time).wakeAll(restarted);
+		expect(restarted.items.get(thread.id)).toEqual({kind: 'thread', id: thread.id});
+		expect(restarted.items.get(project.id)).toEqual({kind: 'project', id: project.id});
 	});
 });
 
