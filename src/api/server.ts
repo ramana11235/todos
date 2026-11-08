@@ -26,12 +26,13 @@ export function createApi(
 	{build = null, home = null, web = null}: {build?: string | null; home?: string | null; web?: string | null} = {},
 ): Server {
 	const handle = createHandler(threads, tasks, thoughts, projects, settings, push, {build, home, pid: process.pid});
+	// Only a request sent to the laptop itself is answered. A web page can
+	// make its own name point at 127.0.0.1 and then reach this API as if it
+	// were its own site, but its requests still carry that name. The names are
+	// learnt once it listens, since a server that is closing has no address.
+	let hosts: string[] = [];
 	const server = createServer(async (request, response) => {
-		// Only a request sent to the laptop itself is answered. A web page can
-		// make its own name point at 127.0.0.1 and then reach this API as if
-		// it were its own site, but its requests still carry that name.
-		const port = (server.address() as AddressInfo).port;
-		if (![`127.0.0.1:${port}`, `localhost:${port}`].includes(request.headers.host ?? '')) {
+		if (!hosts.includes(request.headers.host ?? '')) {
 			response.writeHead(403, {'content-type': 'application/json'});
 			response.end(JSON.stringify({error: 'The local API only answers requests sent to 127.0.0.1 or localhost'}));
 			return;
@@ -41,6 +42,10 @@ export function createApi(
 		const answer = await handle(await toRequest(request));
 		response.writeHead(answer.status, Object.fromEntries(answer.headers));
 		response.end(Buffer.from(await answer.arrayBuffer()));
+	});
+	server.on('listening', () => {
+		const {port} = server.address() as AddressInfo;
+		hosts = [`127.0.0.1:${port}`, `localhost:${port}`];
 	});
 	return server;
 }
