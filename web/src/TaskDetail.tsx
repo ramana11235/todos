@@ -18,6 +18,7 @@ import {Deadline, DeadlinePicker} from './Deadline';
 import {bareInput as bare, somedayBox, titleClass} from './TaskRow';
 import {today} from './days';
 import {ease, ms} from './motion';
+import {RemindButton} from './Reminders';
 import {placeIcons, whenLabel, WhenPicker} from './When';
 
 
@@ -180,6 +181,7 @@ export function TaskDetail({
 						/>
 					</PopoverContent>
 				</Popover>
+				<RemindButton reminder={task.reminder} onChange={reminder => onEdit({reminder})} />
 				<Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
 					<PopoverTrigger render={<Button variant="ghost" size={task.deadline.kind === 'by_day' ? 'sm' : 'icon-sm'} aria-label="Deadline" />}>
 						{task.deadline.kind === 'by_day' ? <Deadline day={task.deadline.day} /> : <FlagIcon />}

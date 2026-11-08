@@ -21,6 +21,10 @@ import type {Storage} from '../src/storage/storage.js';
 let proxy: PlatformProxy<{DB: D1Database & {batch(statements: unknown[]): Promise<unknown>}}> | undefined;
 afterAll(() => proxy?.dispose());
 
+// The local D1 behind the last storage makeStorage made, for code that
+// reads D1 itself. Only on the d1 test project.
+export const testD1 = (): D1Database => proxy!.env.DB;
+
 // Empty storage for a test. The d1 test project sets TODOS_TEST_STORAGE so the
 // same tests run on D1 as well as on SQLite. `path` is for the SQLite file.
 export async function makeStorage(path = ':memory:'): Promise<Storage> {

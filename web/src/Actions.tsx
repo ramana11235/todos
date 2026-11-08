@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {BanIcon, BoxIcon, CalendarIcon, CheckIcon, FlagIcon, NetworkIcon, XIcon} from 'lucide-react';
+import {BanIcon, BellIcon, BoxIcon, CalendarIcon, CheckIcon, FlagIcon, NetworkIcon, XIcon} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Dialog, DialogContent, DialogTitle} from '@/components/ui/dialog';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
@@ -13,6 +13,8 @@ import type {Belonging, Belongs} from '../../src/core/project';
 import type {TaskEdit} from '../../src/core/tasks';
 import {BelongsPicker} from './Pages';
 import {DeadlinePicker} from './Deadline';
+import {ReminderPicker} from './Reminders';
+import type {Reminder} from '../../src/core/reminder';
 import {ThreadPicker} from './ThreadPicker';
 import {WhenPicker} from './When';
 import type {Deadline, Thread} from '../../src/core/thread';
@@ -21,6 +23,7 @@ import type {Deadline, Thread} from '../../src/core/thread';
 export type Actions = {
 	when: (edit: TaskEdit) => void;
 	deadline: (deadline: Deadline) => void;
+	reminder: (reminder: Reminder) => void;
 	// Links them all to a Thread, or to none.
 	thread: (id: string | null) => void;
 	// Puts them all in a project or area, or in neither.
@@ -32,7 +35,7 @@ export type Actions = {
 // Shown at the bottom while several Tasks are selected. On a phone the
 // buttons show only their icons, so the bar fits the width.
 export function SelectionBar({count, actions, threads, order, onClear}: {count: number; actions: Actions; threads: Thread[]; order: Belonging[]; onClear: () => void}) {
-	const [open, setOpen] = useState<'when' | 'deadline' | 'thread' | 'belongs' | null>(null);
+	const [open, setOpen] = useState<'when' | 'reminder' | 'deadline' | 'thread' | 'belongs' | null>(null);
 	const then = (run: () => void) => {
 		setOpen(null);
 		run();
@@ -51,6 +54,15 @@ export function SelectionBar({count, actions, threads, order, onClear}: {count: 
 					</PopoverTrigger>
 					<PopoverContent className="w-auto p-1" side="top">
 						<WhenPicker task={null} inbox onEdit={edit => then(() => actions.when(edit))} />
+					</PopoverContent>
+				</Popover>
+				<Popover open={open === 'reminder'} onOpenChange={o => setOpen(o ? 'reminder' : null)}>
+					<PopoverTrigger render={<Button variant="ghost" size="sm" aria-label="Remind me" />}>
+						<BellIcon data-icon="inline-start" />
+						<span className="max-md:hidden">Remind me</span>
+					</PopoverTrigger>
+					<PopoverContent className="w-auto p-1" side="top">
+						<ReminderPicker reminder={{kind: 'none'}} onChange={given => then(() => actions.reminder(given))} />
 					</PopoverContent>
 				</Popover>
 				<Popover open={open === 'deadline'} onOpenChange={o => setOpen(o ? 'deadline' : null)}>
@@ -107,17 +119,18 @@ export function TaskMenu({actions, threads, order, onTurnIntoThread}: {
 	// Only for a single Task.
 	onTurnIntoThread?: (parentId: string | null) => void;
 }) {
-	const [picking, setPicking] = useState<'when' | 'deadline' | 'thread' | 'belongs' | 'turn' | null>(null);
+	const [picking, setPicking] = useState<'when' | 'reminder' | 'deadline' | 'thread' | 'belongs' | 'turn' | null>(null);
 	const then = (run: () => void) => {
 		setPicking(null);
 		run();
 	};
-	const title = {when: 'Set a day', deadline: 'Set a deadline', thread: 'Link to a Thread', belongs: 'Put in a project or area', turn: 'Turn into a Thread'};
+	const title = {when: 'Set a day', reminder: 'Set a reminder', deadline: 'Set a deadline', thread: 'Link to a Thread', belongs: 'Put in a project or area', turn: 'Turn into a Thread'};
 	return (
 		<>
 			<ContextMenuContent>
 				<ContextMenuGroup>
 					<ContextMenuItem onClick={() => setPicking('when')}>{title.when}</ContextMenuItem>
+					<ContextMenuItem onClick={() => setPicking('reminder')}>{title.reminder}</ContextMenuItem>
 					<ContextMenuItem onClick={() => setPicking('deadline')}>{title.deadline}</ContextMenuItem>
 					<ContextMenuItem onClick={() => setPicking('thread')}>{title.thread}</ContextMenuItem>
 					<ContextMenuItem onClick={() => setPicking('belongs')}>{title.belongs}</ContextMenuItem>
@@ -130,10 +143,12 @@ export function TaskMenu({actions, threads, order, onTurnIntoThread}: {
 				</ContextMenuGroup>
 			</ContextMenuContent>
 			<Dialog open={picking !== null} onOpenChange={open => !open && setPicking(null)}>
-				<DialogContent showCloseButton={false} className={picking === 'when' || picking === 'deadline' ? 'w-auto p-1' : 'top-[30%] p-2'}>
+				<DialogContent showCloseButton={false} className={picking === 'when' || picking === 'reminder' || picking === 'deadline' ? 'w-auto p-1' : 'top-[30%] p-2'}>
 					<DialogTitle className="sr-only">{picking ? title[picking] : ''}</DialogTitle>
 					{picking === 'when' ? (
 						<WhenPicker task={null} inbox onEdit={edit => then(() => actions.when(edit))} />
+					) : picking === 'reminder' ? (
+						<ReminderPicker reminder={{kind: 'none'}} onChange={given => then(() => actions.reminder(given))} />
 					) : picking === 'deadline' ? (
 						<DeadlinePicker deadline={{kind: 'none'}} onChange={given => then(() => actions.deadline(given))} />
 					) : picking === 'belongs' ? (

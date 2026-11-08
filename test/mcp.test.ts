@@ -279,7 +279,7 @@ describe('the MCP server', () => {
 		expect((await call('add_task', {title: 'Call the landlord', thread: null})).body).toEqual({added: true, id: expect.any(String)});
 		await call('add_task', {title: 'Fix the keys', thread: sibling, when: {kind: 'today'}});
 		const found = (await call('find_tasks', {query: 'landlord'})).body;
-		expect(found).toEqual([{id: expect.any(String), title: 'Call the landlord', list: 'inbox', when: {kind: 'inbox'}, deadline: {kind: 'none'}, ended: 'not_ended', thread: null, belongsTo: {kind: 'none'}}]);
+		expect(found).toEqual([{id: expect.any(String), title: 'Call the landlord', list: 'inbox', when: {kind: 'inbox'}, deadline: {kind: 'none'}, reminder: {kind: 'none'}, ended: 'not_ended', thread: null, belongsTo: {kind: 'none'}}]);
 		expect((await call('find_tasks', {thread: sibling})).body.map((t: any) => [t.title, t.list, t.thread.title])).toEqual([['Fix the keys', 'today', 'Build the TUI']]);
 		await call('edit_task', {task: found[0].id, thread: sibling, when: {kind: 'on_day', day: '2099-01-01'}});
 		expect((await call('find_tasks', {query: 'landlord'})).body[0]).toMatchObject({list: 'upcoming', thread: {id: sibling}});
@@ -312,6 +312,17 @@ describe('the MCP server', () => {
 		expect(await client.task(body.results[0].id)).toMatchObject({deadline: {kind: 'by_day', day: '2099-02-01'}, checklist: [{title: 'Compare prices'}]});
 		expect(await client.task(id)).toMatchObject({deadline: {kind: 'by_day', day: '2099-03-01'}, checklist: []});
 		expect((await call('add_task', {title: 'Pay rent', deadline: {kind: 'by_day', day: 'soon'}})).isError).toBe(true);
+	});
+
+	it('sets a Task\'s Reminder at a time on the user\'s clock, reads it back the same way, and clears it', async () => {
+		const id = (await call('add_task', {title: 'Renew the passport', reminder: {kind: 'set', at: '2099-01-01T18:30'}})).body.id;
+		expect((await client.task(id)).reminder).toEqual({kind: 'set', at: new Date('2099-01-01T18:30').toISOString()});
+		expect((await call('get_task', {task: id})).body.reminder).toEqual({kind: 'set', at: '2099-01-01T18:30'});
+		await call('edit_task', {task: id, reminder: {kind: 'set', at: '2099-01-02'}});
+		expect((await client.task(id)).reminder).toEqual({kind: 'set', at: new Date('2099-01-02T09:00').toISOString()});
+		await call('batch', {changes: [{tool: 'edit_task', task: id, reminder: {kind: 'none'}}]});
+		expect((await client.task(id)).reminder).toEqual({kind: 'none'});
+		expect((await call('edit_task', {task: id, reminder: {kind: 'set', at: 'soon'}})).isError).toBe(true);
 	});
 
 	it('places Tasks and new Threads in their list, alone or in a batch, and lists Tasks in my order', async () => {
@@ -348,7 +359,7 @@ describe('the MCP server', () => {
 		const checklist = [{id: 'a', title: 'Open Home', done: true}];
 		await client.editTask(id, {checklist, deadline: {kind: 'by_day', day: '2099-01-01'}});
 		expect((await call('get_task', {task: id})).body).toEqual({
-			id, title: 'Check the panel', list: 'anytime', when: {kind: 'anytime'}, deadline: {kind: 'by_day', day: '2099-01-01'}, ended: 'not_ended',
+			id, title: 'Check the panel', list: 'anytime', when: {kind: 'anytime'}, deadline: {kind: 'by_day', day: '2099-01-01'}, reminder: {kind: 'none'}, ended: 'not_ended',
 			thread: {id: mine, title: 'Build the MCP server'}, belongsTo: {kind: 'none'}, notes: '1. Open Home', checklist,
 		});
 		expect((await call('get_task', {task: 'missing'})).isError).toBe(true);

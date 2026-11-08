@@ -41,6 +41,7 @@ const taskFields = {
 	belongs: {input: 'belongs_to'},
 	notes: {input: 'notes'},
 	deadline: {input: 'deadline'},
+	reminder: {input: 'reminder'},
 	checklist: {input: 'checklist'},
 	index: {input: 'position'},
 	after: {leftOut: 'A Session places a new Task with position, as move_thread places a Thread'},
@@ -53,6 +54,7 @@ const taskEditFields = {
 	threadId: {input: 'thread'},
 	belongs: {input: 'belongs_to'},
 	deadline: {input: 'deadline'},
+	reminder: {input: 'reminder'},
 	notes: {input: 'notes'},
 	checklist: {input: 'checklist'},
 	position: {leftOut: 'The number the web app sets when I drag a Task; a Session places one with position, sent as index'},
@@ -137,6 +139,7 @@ const changes: Array<{change: string; tool: string; args: Record<string, unknown
 // A value each input accepts.
 const samples: Record<string, unknown> = {
 	whose_move: 'waiting', ended: 'done', checklist: [], note_edits: [], position: 0, belongs_to: {kind: 'none'},
+	reminder: {kind: 'none'},
 };
 
 afterEach(() => vi.unstubAllGlobals());

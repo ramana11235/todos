@@ -49,6 +49,7 @@ import {dayOf, groupedByThread, listNames, listOf, lists, whenAfter, type List, 
 import type {TaskEdit} from '../../src/core/tasks';
 import type {MyEdit} from '../../src/core/threads';
 import {isActive, shownMove, type Deadline, type Thread} from '../../src/core/thread';
+import {Bell} from './Reminders';
 import {SelectionBar, TaskMenu, type Actions} from './Actions';
 import {Capture} from './Capture';
 import {NewTask, type Draft} from './NewTask';
@@ -585,6 +586,7 @@ export function App() {
 	const actions = (some: string[]): Actions => ({
 		when: patch => when(some, patch),
 		deadline: day => deadline(some, day),
+		reminder: given => edit(some, {reminder: given}, some.length > 1 ? `${given.kind === 'set' ? 'Set a reminder on' : 'Cleared the reminder of'} ${count(some.length)}` : undefined),
 		// A Task links to one Thread, project or area at most, so linking one
 		// takes it out of the other.
 		thread: id => edit(some, id ? {threadId: id, belongs: {kind: 'none'}} : {threadId: id}, some.length > 1 ? `${id ? 'Linked' : 'Unlinked'} ${count(some.length)}` : undefined),
@@ -958,6 +960,14 @@ export function App() {
 	};
 
 	// A page takes the place of a list, and going back to a list closes it.
+	// Opening a Task from the bell uses up its Reminder if it was due.
+	const openFromBell = (task: Task) => {
+		if (task.reminder.kind === 'due') edit([task.id], {reminder: {kind: 'none'}});
+		setView(listOf(task, now));
+		setOpenId(task.id);
+	};
+	const bell = <Bell tasks={tasks} onOpen={openFromBell} onClear={task => edit([task.id], {reminder: {kind: 'none'}})} />;
+
 	const openPage = (page: Page) => {
 		setView(view === 'threads' || showsEnded(view) ? 'anytime' : view);
 		setShown(page);
@@ -1139,6 +1149,7 @@ export function App() {
 						<header className="flex items-center justify-between px-3 pt-3 md:hidden">
 							<SidebarTrigger />
 							<div className="flex items-center gap-1">
+							{bell}
 							{/* The phone has no Alt+C, so capture is a button on every page. */}
 							<Button variant="ghost" size="icon-sm" onClick={() => setCapturing(true)} aria-label="Capture into the Inbox">
 								<InboxIcon />
@@ -1252,6 +1263,7 @@ export function App() {
 							</Button>
 						)}
 						{bar && <SelectionBar count={chosen.length} actions={actions(chosen)} threads={threads} order={order} onClear={() => setSelected([])} />}
+						<div className="fixed top-3 right-4 z-40 max-md:hidden">{bell}</div>
 					</SidebarInset>
 				</SidebarProvider>
 				<DragOverlay>

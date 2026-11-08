@@ -7,6 +7,7 @@ import {z} from 'zod';
 import {batchLimit, turnsIntoThreadsLimit, type BatchRequest} from '../api/api.js';
 import {ApiError, type Client} from '../client/client.js';
 import {belongingOrder, taskBelongs, threadBelongs, type Area, type Project} from '../core/project.js';
+import type {Reminder} from '../core/reminder.js';
 import {dayOf, listOf, listRows, lists, places, type Place, type Task} from '../core/task.js';
 import {directoryOf, shownMove, treeRows, type Thread} from '../core/thread.js';
 
@@ -59,7 +60,7 @@ const describe = (thread: Thread) => ({
 const describeTask = (task: Task, threads: Thread[], today: string) => {
 	const owner = threads.find(candidate => candidate.id === task.threadId);
 	return {
-		id: task.id, title: task.title, list: listOf(task, today), when: task.when, deadline: task.deadline, ended: task.ended,
+		id: task.id, title: task.title, list: listOf(task, today), when: task.when, deadline: task.deadline, reminder: reminderOut(task.reminder), ended: task.ended,
 		thread: owner ? {id: owner.id, title: owner.title} : null, belongsTo: taskBelongs(task, threads),
 	};
 };
@@ -79,6 +80,25 @@ const deadline = z
 	.discriminatedUnion('kind', [z.object({kind: z.literal('none')}), z.object({kind: z.literal('by_day'), day})])
 	.optional()
 	.describe('A day by which it must be done, only from a day the user gave you. none to take it away.');
+
+// A Session gives a Reminder's moment on the user's own clock, which is this
+// laptop's, and the API keeps it as an instant.
+const reminder = z
+	.discriminatedUnion('kind', [z.object({kind: z.literal('none')}), z.object({kind: z.literal('set'), at: z.string().describe('A day and time on the user\'s clock, such as 2026-11-09T09:00.')})])
+	.optional()
+	.describe('When todos tells the user about it, only from a time the user gave you, or none to clear it. A day with no time is 09:00. It never moves the Task.');
+const reminderIn = (value: z.infer<typeof reminder>) => {
+	if (value?.kind !== 'set') return value;
+	const at = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value.at) ? `${value.at}T09:00` : value.at);
+	// One that is not a moment goes on as it is, so the API says what is wrong.
+	return Number.isNaN(at.getTime()) ? value : {kind: 'set', at: at.toISOString()};
+};
+// The moment on the user's own clock, as a Session gives it.
+const reminderOut = (value: Reminder) => {
+	if (value.kind === 'none') return value;
+	const at = new Date(value.at);
+	return {kind: value.kind, at: `${dayOf(at)}T${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`};
+};
 
 const belongsTo = z
 	.discriminatedUnion('kind', [z.object({kind: z.literal('none')}), z.object({kind: z.literal('project'), id: z.string()}), z.object({kind: z.literal('area'), id: z.string()})])
@@ -140,6 +160,7 @@ const addTaskInput = {
 	belongs_to: belongsTo.describe('The project or area it belongs to, for a Task with thread null.'),
 	notes: z.string().optional().describe('Everything the user needs to do it, step by step, when you make it for them.'),
 	deadline,
+	reminder,
 	checklist,
 	position: z.number().int().min(0).optional().describe('Where among the Tasks of its list and Thread, as find_tasks lists them, 0 for first. Not in Upcoming, which is in date order.'),
 };
@@ -152,6 +173,7 @@ const editTaskInput = {
 	belongs_to: belongsTo.describe('The project or area it belongs to, which takes it off its Thread.'),
 	notes: z.string().optional().describe('The whole notes, replacing the old ones.'),
 	deadline,
+	reminder,
 	checklist,
 	position: z.number().int().min(0).optional().describe('Where among the Tasks of its list and Thread, as find_tasks lists them, 0 for first. Not in Upcoming, which is in date order.'),
 	ended: z.enum(['not_ended', 'done', 'dropped']).optional().describe('not_ended reopens it.'),
@@ -417,11 +439,11 @@ export function createMcpServer({client, threadId}: {client: Client; threadId: s
 				const {tool, title, thread = threadId, position, belongs_to, ...fields} = change;
 				// A Task put in a project or area goes on no Thread, rather than on your own.
 				const onThread = belongs_to && belongs_to.kind !== 'none' && change.thread === undefined ? null : thread;
-				return {method: 'POST', path: '/api/tasks', body: {...fields, title, threadId: onThread, belongs: belongs_to, index: position}};
+				return {method: 'POST', path: '/api/tasks', body: {...fields, title, threadId: onThread, belongs: belongs_to, index: position, reminder: reminderIn(change.reminder)}};
 			}
 			case 'edit_task': {
 				const {tool, task, thread, position, belongs_to, ...fields} = change;
-				return {method: 'PATCH', path: `/api/tasks/${task}`, body: {...fields, threadId: thread, belongs: belongs_to, index: position}};
+				return {method: 'PATCH', path: `/api/tasks/${task}`, body: {...fields, threadId: thread, belongs: belongs_to, index: position, reminder: reminderIn(change.reminder)}};
 			}
 			case 'turn_task_into_thread':
 				return {method: 'POST', path: `/api/tasks/${change.task}/thread`, body: {parentId: change.parent}};

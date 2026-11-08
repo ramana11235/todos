@@ -2,6 +2,7 @@
 // laid out. Nothing here touches storage, the terminal or the network.
 
 import {groupedByBelonging, taskBelongs, type Belonging, type Belongs} from './project.js';
+import type {Reminder} from './reminder.js';
 import {treeRows, type Deadline, type Ended, type Thread} from './thread.js';
 
 // Where a Task was put. Upcoming is never set: a Task is in it because its
@@ -40,6 +41,8 @@ export type Task = {
 	position: number;
 	// A day by which the Task must be done. It never moves the Task.
 	deadline: Deadline;
+	// When todos tells me about it. It never moves the Task.
+	reminder: Reminder;
 	notes: string;
 	checklist: Step[];
 	ended: Ended;

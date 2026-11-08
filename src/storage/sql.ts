@@ -103,7 +103,7 @@ export abstract class SqlStorage implements Storage {
 	}
 
 	// Each row's values are read from one JSON array, because D1 takes at
-	// most 100 bound values in a query and 14 a row would pass that.
+	// most 100 bound values in a query and 16 a row would pass that.
 	async saveTasks(tasks: Task[]): Promise<void> {
 		if (tasks.length === 0) return;
 		const rows = tasks.map(task => [
@@ -115,6 +115,8 @@ export abstract class SqlStorage implements Storage {
 			...belongsColumns(task.belongs),
 			task.position,
 			dayOfDeadline(task.deadline),
+			task.reminder.kind,
+			task.reminder.kind === 'none' ? null : task.reminder.at,
 			task.notes,
 			JSON.stringify(task.checklist),
 			task.ended,
@@ -123,11 +125,12 @@ export abstract class SqlStorage implements Storage {
 		]);
 		// SQLite needs the WHERE so that it reads ON CONFLICT as part of the INSERT.
 		await this.db.run(
-			`INSERT INTO tasks (id, title, when_kind, when_day, thread_id, belongs_kind, belongs_id, position, deadline, notes, checklist, ended, ended_at, created_at)
+			`INSERT INTO tasks (id, title, when_kind, when_day, thread_id, belongs_kind, belongs_id, position, deadline, reminder_kind, reminder_at, notes, checklist, ended, ended_at, created_at)
 				SELECT ${rows[0]!.map((_, column) => `value ->> ${column}`).join(', ')} FROM json_each(?) WHERE true
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title, when_kind = excluded.when_kind, when_day = excluded.when_day,
 					thread_id = excluded.thread_id, belongs_kind = excluded.belongs_kind, belongs_id = excluded.belongs_id, position = excluded.position, deadline = excluded.deadline,
+					reminder_kind = excluded.reminder_kind, reminder_at = excluded.reminder_at,
 					notes = excluded.notes, checklist = excluded.checklist, ended = excluded.ended,
 					ended_at = excluded.ended_at`,
 			JSON.stringify(rows),
@@ -239,6 +242,7 @@ function columnsOf(changes: object, names: Record<string, string>): Record<strin
 	for (const [field, value] of Object.entries(changes) as [string, any][]) {
 		if (field === 'when') Object.assign(columns, {when_kind: value.kind, when_day: value.kind === 'on_day' ? value.day : null});
 		else if (field === 'deadline') columns.deadline = dayOfDeadline(value);
+		else if (field === 'reminder') Object.assign(columns, {reminder_kind: value.kind, reminder_at: value.kind === 'none' ? null : value.at});
 		else if (field === 'belongs') Object.assign(columns, belongsColumnsOf(value));
 		else if (field === 'area') columns.area_id = value.kind === 'in' ? value.id : null;
 		else if (field === 'checklist') columns.checklist = JSON.stringify(value);
@@ -248,7 +252,7 @@ function columnsOf(changes: object, names: Record<string, string>): Record<strin
 	return columns;
 }
 
-const taskColumns: Record<Exclude<keyof Task, 'when' | 'deadline' | 'belongs' | 'checklist'>, string> = {
+const taskColumns: Record<Exclude<keyof Task, 'when' | 'deadline' | 'reminder' | 'belongs' | 'checklist'>, string> = {
 	id: 'id',
 	title: 'title',
 	threadId: 'thread_id',
@@ -358,6 +362,8 @@ type TaskRow = {
 	belongs_id: string | null;
 	position: number;
 	deadline: string | null;
+	reminder_kind: string;
+	reminder_at: string | null;
 	notes: string;
 	checklist: string;
 	ended: string;
@@ -374,6 +380,7 @@ function taskFromRow(row: TaskRow): Task {
 		belongs: belongsOf(row.belongs_kind, row.belongs_id),
 		position: row.position,
 		deadline: deadlineOf(row.deadline),
+		reminder: row.reminder_kind === 'none' ? {kind: 'none'} : {kind: row.reminder_kind as 'set' | 'due', at: row.reminder_at!},
 		notes: row.notes,
 		checklist: JSON.parse(row.checklist),
 		ended: row.ended as Ended,

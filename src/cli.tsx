@@ -31,6 +31,7 @@ import {SessionRunner} from './session/runner.js';
 import {homeWindow, tmuxConfig, tmuxSession} from './session/tmux-config.js';
 import {minimumTmux, Tmux, tmuxIsNewEnough} from './session/tmux.js';
 import {backup, backupHosted} from './storage/backup.js';
+import {TimerClock} from './reminders/timers.js';
 import {SqliteStorage} from './storage/sqlite.js';
 
 const [command, ...args] = process.argv.slice(2);
@@ -120,7 +121,9 @@ async function serve(): Promise<void> {
 	if (settings().instance === 'hosted') throw new Error(`${settingsPath()} says this home uses the hosted Instance, so it runs no API of its own.`);
 	mkdirSync(todosHome(), {recursive: true});
 	const storage = new SqliteStorage(databasePath());
-	const server = createApi(new Threads(storage), new Tasks(storage), new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), {
+	const tasks: Tasks = new Tasks(storage, undefined, new TimerClock(item => tasks.reminderCame(item.id)));
+	await tasks.wakeAll();
+	const server = createApi(new Threads(storage), tasks, new Thoughts(storage), new Projects(storage), new InstanceSettings(storage), {
 		build: buildId(),
 		home: todosHome(),
 		// The web app is built next to this file, into dist/web.

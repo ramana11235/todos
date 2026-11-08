@@ -32,5 +32,12 @@
 			"database_id": "your-d1-database-id",
 			"migrations_dir": "migrations"
 		}
-	]
+	],
+	// Each item with a Reminder has its own Durable Object, whose alarm goes
+	// off at the Reminder's moment (src/reminders/alarm.ts). The free plan
+	// allows only SQLite-backed ones.
+	"durable_objects": {
+		"bindings": [{"name": "REMINDERS", "class_name": "ReminderAlarm"}]
+	},
+	"migrations": [{"tag": "reminder-alarms", "new_sqlite_classes": ["ReminderAlarm"]}]
 }

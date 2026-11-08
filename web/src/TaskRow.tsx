@@ -1,6 +1,6 @@
 import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
-import {FileTextIcon, ListChecksIcon, XIcon} from 'lucide-react';
+import {BellIcon, FileTextIcon, ListChecksIcon, XIcon} from 'lucide-react';
 import type {CSSProperties} from 'react';
 import {cn} from '@/lib/utils';
 import {Checkbox} from '@/components/ui/checkbox';
@@ -16,12 +16,13 @@ export const titleClass = 'font-sans text-[0.9375rem] leading-6 md:text-[0.9375r
 export const somedayBox = (task: Task) => (task.when.kind === 'someday' && task.ended === 'not_ended' ? 'border-dashed border-foreground/60' : undefined);
 export const bareInput = 'h-auto min-w-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none focus-visible:ring-0 dark:bg-transparent';
 
-// Small marks for what an open Task would show: Notes, Checklist progress,
-// its Date in Upcoming and its Deadline.
+// Small marks for what an open Task would show: a Reminder, Notes,
+// Checklist progress, its Date in Upcoming and its Deadline.
 function Meta({task, view}: {task: Task; view: string}) {
 	const ticked = task.checklist.filter(s => s.done).length;
 	return (
 		<span className="flex shrink-0 items-center gap-3 text-muted-foreground">
+			{task.reminder.kind !== 'none' && <BellIcon className="size-3.5" aria-label="Has a reminder" />}
 			{task.notes && <FileTextIcon className="size-3.5" />}
 			{task.checklist.length > 0 && (
 				<span className="flex items-center gap-1 text-xs tabular-nums">

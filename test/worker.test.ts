@@ -9,7 +9,17 @@ const untouched = {
 	},
 } as unknown as D1Database;
 
-const env = {DB: untouched, ACCESS_TEAM: 'https://example.cloudflareaccess.com', ACCESS_AUD: 'todos-aud'};
+// Reminder alarms that fail the test if the Worker ever reaches them.
+const noAlarms = {
+	idFromName: () => {
+		throw new Error('The Worker reached a Reminder alarm without a valid Access token');
+	},
+	get: () => {
+		throw new Error('The Worker reached a Reminder alarm without a valid Access token');
+	},
+};
+
+const env = {DB: untouched, REMINDERS: noAlarms, ACCESS_TEAM: 'https://example.cloudflareaccess.com', ACCESS_AUD: 'todos-aud'};
 
 describe('the Worker', () => {
 	it('turns away an API request without an Access token before reaching the data', async () => {
