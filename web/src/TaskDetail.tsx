@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {BoxIcon, FlagIcon, ListChecksIcon, MoreHorizontalIcon, NetworkIcon, SplitIcon} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {Button} from '@/components/ui/button';
@@ -64,6 +64,24 @@ export function TaskDetail({
 		setFocus(id);
 	};
 	const steps = draft ? withStepAt(task.checklist, draft, draft.at) : task.checklist;
+	// A click outside closes the Task as the pointer goes down, which takes
+	// the title and Notes off the page before they lose focus, so whatever
+	// was typed and not yet saved is saved as the Task closes.
+	const titleBox = useRef<HTMLTextAreaElement | null>(null);
+	const notesBox = useRef<HTMLTextAreaElement | null>(null);
+	const saved = useRef({title: task.title, notes: task.notes});
+	const save = (edit: {title?: string; notes?: string}) => {
+		saved.current = {...saved.current, ...edit};
+		onEdit(edit);
+	};
+	const saveOnClose = useRef(() => {});
+	saveOnClose.current = () => {
+		const title = titleBox.current?.value.trim() ?? saved.current.title;
+		const notes = notesBox.current?.value ?? saved.current.notes;
+		const edit = {...(title && title !== saved.current.title ? {title} : {}), ...(notes !== saved.current.notes ? {notes} : {})};
+		if (Object.keys(edit).length) save(edit);
+	};
+	useEffect(() => () => saveOnClose.current(), []);
 
 	return (
 		<div
@@ -95,7 +113,10 @@ export function TaskDetail({
 						const after = el.offsetHeight;
 						if (after !== before) el.animate([{height: `${before}px`}, {height: `${after}px`}], {duration: ms, easing: ease});
 					}}
-					onBlur={e => e.currentTarget.value.trim() && e.currentTarget.value.trim() !== task.title && onEdit({title: e.currentTarget.value.trim()})}
+					ref={el => {
+						if (el) titleBox.current = el;
+					}}
+					onBlur={e => e.currentTarget.value.trim() && e.currentTarget.value.trim() !== saved.current.title && save({title: e.currentTarget.value.trim()})}
 					onKeyDown={e => {
 						if (e.key === 'Enter') {
 							e.preventDefault();
@@ -110,9 +131,12 @@ export function TaskDetail({
 					defaultValue={task.notes}
 					placeholder="Notes"
 					className={cn(bare, 'min-h-10 resize-none pl-7 text-sm md:text-sm')}
+					ref={el => {
+						if (el) notesBox.current = el;
+					}}
 					onBlur={e => {
 						setEditingNotes(false);
-						if (e.currentTarget.value !== task.notes) onEdit({notes: e.currentTarget.value});
+						if (e.currentTarget.value !== saved.current.notes) save({notes: e.currentTarget.value});
 					}}
 					onKeyDown={e => e.key === 'Escape' && e.currentTarget.blur()}
 				/>
